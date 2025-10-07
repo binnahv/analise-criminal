@@ -52,26 +52,20 @@ def load_violencia_domestica_data():
         # Carregar dataset completo
         df = pd.read_csv('data/dataset_ocorrencias_delegacia_5.csv')
         
-        # Filtrar apenas casos relacionados à violência doméstica
+        # Filtrar apenas casos específicos: Estupro, Ameaça e Violência Doméstica
         tipos_violencia_domestica = [
             'Violência Doméstica',
             'Estupro', 
-            'Ameaça',
-            'Lesão Corporal',
-            'Injúria',
-            'Difamação',
-            'Constrangimento Ilegal'
+            'Ameaça'
         ]
         
         # Filtrar dados
         df_vd = df[df['tipo_crime'].isin(tipos_violencia_domestica)].copy()
         
-        # Se não houver dados específicos, criar um subset representativo
+        # Verificar se encontrou dados
         if len(df_vd) == 0:
-            st.warning("⚠️ Nenhum caso específico de violência doméstica encontrado. Usando dados simulados baseados no dataset.")
-            # Pegar uma amostra dos dados e adaptar
-            df_vd = df.sample(n=min(500, len(df))).copy()
-            df_vd['tipo_crime'] = np.random.choice(tipos_violencia_domestica, len(df_vd))
+            st.error("❌ Nenhum caso de violência doméstica encontrado no dataset.")
+            return pd.DataFrame()
         
         # Processar dados
         df_vd['data_ocorrencia'] = pd.to_datetime(df_vd['data_ocorrencia'], errors='coerce')
@@ -146,10 +140,12 @@ def create_sidebar_filters(df):
         default=[]
     )
     
-    # Filtro por período
+    # Filtro por período - limitado ao range do dataset
     if not df['data_ocorrencia'].isna().all():
         min_date = df['data_ocorrencia'].min().date()
         max_date = df['data_ocorrencia'].max().date()
+        
+        st.sidebar.markdown(f"**Período disponível:** {min_date.strftime('%d/%m/%Y')} a {max_date.strftime('%d/%m/%Y')}")
         
         data_range = st.sidebar.date_input(
             "📅 Período",
@@ -432,8 +428,7 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>🏠 Dashboard de Violência Doméstica</h1>
-        <p>Delegacia Especializada de Atendimento à Mulher - DEAM</p>
+        <h1>Dashboard de Violência Doméstica</h1>  
         <p><strong>Aluna:</strong> Sabrina Vidal</p>
     </div>
     """, unsafe_allow_html=True)
@@ -446,7 +441,8 @@ def main():
         return
     
     # Mostrar informações sobre os dados
-    st.info(f"📊 **Dataset carregado:** {len(df)} casos de violência doméstica encontrados")
+    tipos_encontrados = df['tipo_crime'].value_counts()
+    st.info(f"📊 **Dataset carregado:** {len(df)} casos encontrados | Estupro: {tipos_encontrados.get('Estupro', 0)} | Ameaça: {tipos_encontrados.get('Ameaça', 0)} | Violência Doméstica: {tipos_encontrados.get('Violência Doméstica', 0)}")
     
     # Filtros
     filters = create_sidebar_filters(df)
@@ -520,19 +516,9 @@ def main():
             mime="text/csv"
         )
     
-    # Rodapé com informações importantes
+    # Rodapé
     st.markdown("---")
-    st.markdown("""
-    <div class="alert-box">
-        <h4>⚠️ Informações Importantes</h4>
-        <ul>
-            <li><strong>Emergência:</strong> Em caso de violência doméstica, ligue 190 (Polícia Militar) ou 180 (Central de Atendimento à Mulher)</li>
-            <li><strong>Dados:</strong> Este dashboard utiliza dados reais do sistema para análise e planejamento</li>
-            <li><strong>Privacidade:</strong> Informações pessoais são protegidas conforme LGPD</li>
-            <li><strong>Suporte:</strong> Para dúvidas técnicas, contacte a equipe de desenvolvimento</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #666;'>Dashboard de Violência Doméstica - DEAM | Projeto Acadêmico</p>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
