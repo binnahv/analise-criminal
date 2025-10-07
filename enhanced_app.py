@@ -10,7 +10,7 @@ from folium.plugins import HeatMap, MarkerCluster
 import pydeck as pdk
 from datetime import datetime, timedelta
 import os
-from security_utils import SecurityManager, LGPDCompliance, DataValidator, show_lgpd_notice, show_model_limitations
+from security_utils import SecurityManager, LGPDCompliance, DataValidator, show_model_limitations
 from dashboard_tabs import (
     create_scatter_map, show_temporal_analysis, show_cluster_analysis,
     show_anomaly_analysis, show_risk_prediction, show_statistics_insights,
@@ -123,7 +123,7 @@ class EnhancedCriminalDashboard:
     
     def create_sidebar_filters(self, df):
         """Cria filtros globais na sidebar"""
-        st.sidebar.markdown("## 🔍 Filtros Globais")
+        st.sidebar.markdown("## Filtros Globais")
         
         # Filtro de data baseado no dataset
         if 'data_ocorrencia' in df.columns:
@@ -139,7 +139,7 @@ class EnhancedCriminalDashboard:
                 st.sidebar.info(f"📊 Dataset: {min_date} até {max_date}")
                 
                 date_range = st.sidebar.date_input(
-                    "📅 Período de Análise",
+                    "Período de Análise",
                     value=(min_date, max_date),
                     min_value=min_date,
                     max_value=min(max_date, today),
@@ -152,7 +152,7 @@ class EnhancedCriminalDashboard:
         # Filtro de tipo de crime
         crime_types = sorted(df['tipo_crime'].unique().tolist())
         selected_crimes = st.sidebar.multiselect(
-            "🔫 Tipos de Crime",
+            " Tipos de Crime",
             options=crime_types,
             default=[],  # Sem seleção padrão
             help="Deixe vazio para incluir todos os tipos"
@@ -161,7 +161,7 @@ class EnhancedCriminalDashboard:
         # Filtro de bairros
         bairros = sorted(df['bairro'].unique().tolist())
         selected_bairros = st.sidebar.multiselect(
-            "🏘️ Bairros",
+            " Bairros",
             options=bairros,
             default=[],  # Sem seleção padrão
             help="Deixe vazio para incluir todos os bairros"
@@ -169,7 +169,7 @@ class EnhancedCriminalDashboard:
         
         # Filtro de hora
         hour_range = st.sidebar.slider(
-            "🕐 Horário",
+            " Horário",
             min_value=0,
             max_value=23,
             value=(0, 23),  # Todo o dia por padrão
@@ -180,133 +180,20 @@ class EnhancedCriminalDashboard:
         # Filtro de dia da semana
         dias_semana = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo']
         selected_days = st.sidebar.multiselect(
-            "📅 Dias da Semana",
+            " Dias da Semana",
             options=dias_semana,
             default=[],  # Sem seleção padrão
             help="Deixe vazio para incluir todos os dias"
         )
         
-        # Opções de visualização
-        st.sidebar.markdown("### 👁️ Opções de Visualização")
-        show_anomalies = st.sidebar.checkbox("Mostrar apenas anomalias", value=False)
-        show_clusters = st.sidebar.checkbox("Destacar clusters", True)
         
-        # Seção de qualidade dos dados
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("### 📊 Qualidade dos Dados")
-        
-        total_records = len(df)
-        
-        # Análise detalhada de coordenadas
-        if 'latitude' in df.columns and 'longitude' in df.columns:
-            # Coordenadas nulas
-            coords_nulas = (df['latitude'].isna() | df['longitude'].isna()).sum()
-            
-            # Coordenadas fora do range do Recife (aproximadamente)
-            recife_lat_min, recife_lat_max = -8.2, -7.9
-            recife_lon_min, recife_lon_max = -35.1, -34.8
-            
-            coords_fora_recife = (
-                (df['latitude'] < recife_lat_min) | 
-                (df['latitude'] > recife_lat_max) |
-                (df['longitude'] < recife_lon_min) | 
-                (df['longitude'] > recife_lon_max)
-            ).sum()
-            
-            # Coordenadas válidas geograficamente
-            coords_validas = total_records - coords_nulas - coords_fora_recife
-            coord_quality = (coords_validas / total_records) * 100 if total_records > 0 else 0
-            
-            st.sidebar.metric(
-                "🗺️ Coordenadas Válidas", 
-                f"{coords_validas:,}/{total_records:,}",
-                f"{coord_quality:.1f}%"
-            )
-            
-            # Mostrar problemas específicos
-            if coords_nulas > 0:
-                st.sidebar.text(f"⚠️ Coordenadas nulas: {coords_nulas}")
-            if coords_fora_recife > 0:
-                st.sidebar.text(f"⚠️ Fora do Recife: {coords_fora_recife}")
-                
-            # Análise por bairro (validação específica)
-            if 'bairro' in df.columns:
-                coords_por_bairro = {}
-                for bairro in df['bairro'].unique():
-                    df_bairro = df[df['bairro'] == bairro]
-                    valid_coords = df_bairro.apply(
-                        lambda row: DataValidator.validate_coordinates_by_neighborhood(
-                            row.get('latitude'), row.get('longitude'), row.get('bairro')
-                        ), axis=1
-                    ).sum()
-                    percentual = (valid_coords / len(df_bairro)) * 100 if len(df_bairro) > 0 else 0
-                    if percentual < 80:  # Apenas bairros com problemas
-                        coords_por_bairro[bairro] = percentual
-                
-                if coords_por_bairro:
-                    st.sidebar.markdown("**⚠️ Bairros Problemáticos:**")
-                    for bairro, perc in list(coords_por_bairro.items())[:3]:
-                        st.sidebar.text(f"• {bairro}: {perc:.0f}%")
-        
-        # Análise de datas mais detalhada
-        if 'data_ocorrencia' in df.columns:
-            today = datetime.now().date()
-            df_dates = pd.to_datetime(df['data_ocorrencia'], errors='coerce')
-            
-            # Datas válidas (não futuras e não nulas)
-            valid_dates = ((df_dates.dt.date <= today) & (df_dates.notna())).sum()
-            future_dates = (df_dates.dt.date > today).sum()
-            null_dates = df_dates.isna().sum()
-            
-            date_quality = (valid_dates / total_records) * 100 if total_records > 0 else 0
-            
-            st.sidebar.metric(
-                "📅 Datas Válidas", 
-                f"{valid_dates:,}/{total_records:,}",
-                f"{date_quality:.1f}%"
-            )
-            
-            # Mostrar problemas se existirem
-            if future_dates > 0:
-                st.sidebar.text(f"⚠️ Datas futuras: {future_dates}")
-            if null_dates > 0:
-                st.sidebar.text(f"⚠️ Datas nulas: {null_dates}")
-        
-        # Análise de campos obrigatórios
-        campos_obrigatorios = ['tipo_crime', 'bairro']
-        campos_problema = []
-        
-        for campo in campos_obrigatorios:
-            if campo in df.columns:
-                nulos = df[campo].isna().sum()
-                vazios = (df[campo] == '').sum() if df[campo].dtype == 'object' else 0
-                total_problema = nulos + vazios
-                
-                if total_problema > 0:
-                    percentual = (total_problema / total_records) * 100
-                    campos_problema.append(f"{campo}: {percentual:.1f}%")
-        
-        if campos_problema:
-            st.sidebar.markdown("**⚠️ Campos Incompletos:**")
-            for problema in campos_problema[:3]:
-                st.sidebar.text(f"• {problema}")
-        
-        # Resumo da qualidade geral
-        if coord_quality >= 90 and date_quality >= 90 and not campos_problema:
-            st.sidebar.success("✅ Qualidade Excelente")
-        elif coord_quality >= 70 and date_quality >= 70:
-            st.sidebar.warning("⚠️ Qualidade Boa")
-        else:
-            st.sidebar.error("❌ Qualidade Baixa")
         
         return {
             'date_range': date_range,
             'crime_types': selected_crimes,
             'bairros': selected_bairros,
             'hour_range': hour_range,
-            'days': selected_days,
-            'show_anomalies': show_anomalies,
-            'show_clusters': show_clusters
+            'days': selected_days
         }
     
     def filter_data(self, df, filters):
@@ -339,9 +226,6 @@ class EnhancedCriminalDashboard:
         if filters['days']:
             df_filtered = df_filtered[df_filtered['dia_semana'].isin(filters['days'])]
         
-        # Filtro de anomalias
-        if filters['show_anomalies']:
-            df_filtered = df_filtered[df_filtered['anomalia'] == -1]
         
         return df_filtered
     
@@ -384,7 +268,7 @@ def main():
         return
     
     # Header principal
-    st.markdown('<div class="main-header"><h1>🚔 Sistema de Análise Criminal</h1><p>Dashboard Interativo para Apoio à Patrulha Policial</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1> Sistema de Análise Criminal</h1><p>Aluna: Sabrina Vidal</p></div>', unsafe_allow_html=True)
     
     # Carregar dados
     df, sil_score = dashboard.load_data()
@@ -410,16 +294,16 @@ def main():
     
     # Abas principais
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-        "🌎 Geográfica",
-        "🕒 Temporal", 
-        "👥 Clusters",
-        "🚨 Anomalias",
-        "🔮 Previsão",
-        "👮 Investigação",
-        "🔫 Perfil Suspeitos",
-        "🧬 Gravidade",
-        "📝 Modus Operandi",
-        "📊 Estatísticas"
+        "  Geográfica",
+        "  Temporal", 
+        "  Clusters",
+        "  Anomalias",
+        "  Previsão",
+        "  Investigação",
+        "  Perfil Suspeitos",
+        "  Gravidade",
+        "  Modus Operandi",
+        "  Estatísticas"
     ])
     
     # Implementar cada aba
@@ -453,13 +337,12 @@ def main():
     with tab10:
         show_statistics_insights(df_filtered)
     
-    # Sidebar com informações LGPD
-    show_lgpd_notice()
     
     # Logout
-    if st.sidebar.button("🚪 Sair"):
+    if st.sidebar.button("Sair"):
         st.session_state.clear()
         st.rerun()
+
 
 def show_geographic_analysis(df, filters):
     """Aba de análise geográfica"""
@@ -469,7 +352,8 @@ def show_geographic_analysis(df, filters):
         st.warning("Nenhum dado disponível para visualização geográfica.")
         return
     
-    # Debug: Mostrar informações dos dados filtrados
+    
+    # Informações dos dados filtrados
     if 'bairro' in df.columns:
         bairros_unicos = df['bairro'].unique()
         st.info(f"📍 **Dados no mapa:** {len(df)} ocorrências em {len(bairros_unicos)} bairro(s): {', '.join(sorted(bairros_unicos))}")
@@ -486,12 +370,23 @@ def show_geographic_analysis(df, filters):
     col1, col2 = st.columns([3, 1])
     
     with col2:
+        st.markdown("### Configurações do Mapa")
+        
         map_type = st.selectbox(
             "Tipo de Mapa",
             ["Mapa de Calor", "Clusters", "Pontos Individuais", "Densidade 3D"]
         )
         
-        show_anomalies_map = st.checkbox("Destacar Anomalias", True)
+        st.markdown("###Opções de Visualização")
+        
+        show_anomalies_map = st.checkbox("Destacar Anomalias", True, 
+                                       help="Destacar ocorrências identificadas como anomalias")
+        
+        show_clusters_map = st.checkbox("Destacar Clusters", True,
+                                      help="Destacar agrupamentos de crimes")
+        
+        show_only_anomalies = st.checkbox("Mostrar Apenas Anomalias", False,
+                                        help="Filtrar apenas ocorrências anômalas")
         
         # Botão para forçar atualização do mapa
         if st.button("🔄 Atualizar Mapa", help="Força atualização do mapa com filtros atuais"):
@@ -499,14 +394,22 @@ def show_geographic_analysis(df, filters):
             st.rerun()
     
     with col1:
+        # Aplicar filtro de anomalias se selecionado
+        df_map = df.copy()
+        if show_only_anomalies and 'anomalia' in df.columns:
+            df_map = df_map[df_map['anomalia'] == -1]
+            if len(df_map) == 0:
+                st.warning("⚠️ Nenhuma anomalia encontrada nos dados filtrados.")
+                return
+        
         if map_type == "Mapa de Calor":
-            create_heatmap(df, show_anomalies_map)
+            create_heatmap(df_map, show_anomalies_map)
         elif map_type == "Clusters":
-            create_cluster_map(df, show_anomalies_map)
+            create_cluster_map(df_map, show_anomalies_map, show_clusters_map)
         elif map_type == "Pontos Individuais":
-            create_scatter_map(df, show_anomalies_map)
+            create_scatter_map(df_map, show_anomalies_map)
         else:  # Densidade 3D
-            create_3d_density_map(df)
+            create_3d_density_map(df_map)
 
 def create_heatmap(df, show_anomalies):
     """Cria mapa de calor"""
@@ -585,7 +488,7 @@ def create_heatmap(df, show_anomalies):
     # Insights
     st.info(f"📍 **Insight:** Foram mapeadas {len(df)} ocorrências. As áreas mais quentes indicam maior concentração de crimes e demandam atenção especial da patrulha.")
 
-def create_cluster_map(df, show_anomalies):
+def create_cluster_map(df, show_anomalies, show_clusters=True):
     """Cria mapa com clusters"""
     if 'latitude' not in df.columns or 'longitude' not in df.columns:
         st.error("Coordenadas não disponíveis nos dados.")
