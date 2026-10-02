@@ -1,150 +1,97 @@
 # 🚔 Sistema de Análise Criminal
 
-> Projeto acadêmico - Dashboard interativo para análise de dados criminais com Machine Learning e visualizações avançadas
+> Projeto acadêmico (PI) — dashboard interativo em Streamlit para análise exploratória de ocorrências criminais, com validação de dados, clustering, detecção de anomalias e um modelo de classificação.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
 
-## 🎯 Sobre o Projeto
+## 🎯 Sobre o projeto
 
-**Projeto Acadêmico** desenvolvido para demonstrar aplicação de técnicas de Machine Learning e visualização de dados na análise criminal. Sistema web interativo que oferece insights através de dashboards e modelos preditivos.
+Trabalho desenvolvido na faculdade (curso de Análise e Desenvolvimento de Sistemas) para praticar o ciclo completo de um projeto de dados: **carregar, validar, limpar, analisar e visualizar** informações de ocorrências policiais.
 
-## Funcionalidades Principais
+> ⚠️ **Aviso importante:** o dataset foi fornecido pelo professor e é **fictício**. Todos os nomes de delegacias, bairros e registros são usados apenas para fins didáticos. O sistema **não** representa dados reais da Polícia Civil nem de nenhum órgão público.
 
-### 📊 **Dashboard Interativo**
-- **10 abas especializadas** de análise
-- Filtros dinâmicos em tempo real
-- Interface responsiva e intuitiva
+## 📦 Sobre os dados
 
-### 🗺️ **Análise Geográfica**
-- Mapas de calor interativos
-- Clustering geográfico inteligente
-- Validação de coordenadas por bairro
-- Visualização 3D de densidade
+O arquivo `data/dataset_ocorrencias_delegacia_5.csv` tem **5.000 ocorrências** (2022–2025) em **10 bairros do Recife**, com 14 colunas (tipo de crime, modus operandi, arma, vítimas, suspeitos, delegacia, status da investigação, coordenadas etc.).
 
-### 👮 **Análise Investigativa**
-- **Desempenho por delegacia** - Taxa de resolução
-- **Perfil dos suspeitos** - Idade, gênero, armas
-- **Índice de gravidade** - Priorização de casos
-- **Modus operandi** - Padrões criminais
+O dataset contém **inconsistências propositais ou naturais de dados sintéticos**, e parte do trabalho foi identificá-las e tratá-las:
 
-### 🤖 **Machine Learning**
-- Detecção de anomalias (Isolation Forest)
-- Clustering avançado de padrões
-- Previsão de risco (XGBoost/LightGBM)
-- Modelos criptografados para segurança
+| Inconsistência encontrada | O que o projeto faz |
+|---|---|
+| Coordenadas que não correspondem ao bairro informado (apenas ~6% batem com o bairro) | Validação por bairro e por limites geográficos (`DataValidator`) |
+| Coordenadas fora da área urbana considerada (~30% dos registros) | Registros removidos na limpeza: de 5.000 sobram **3.482** |
+| Combinações incoerentes entre tipo de crime e modus operandi (ex.: furto com "Estupro Coletivo") | Identificado como limitação; não é possível corrigir sem a fonte |
+| Ocorrências com 0 vítimas (inclusive homicídios) e com 0 suspeitos mas sexo do suspeito preenchido | Identificado como limitação dos dados |
+| Delegacia responsável sem relação com o bairro da ocorrência | Identificado como limitação dos dados |
 
-### 🔒 **Segurança e Conformidade**
-- Criptografia AES-128 para dados sensíveis
-- Conformidade LGPD completa
-- Logs de auditoria automáticos
-- Controle de acesso por usuário
+> 🔎 Como os dados parecem gerados aleatoriamente, **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
 
-## 🛠️ Stack Tecnológica
+## ✨ Funcionalidades
 
-### **Core**
-- **Python 3.8+** - Linguagem principal
-- **Streamlit 1.28+** - Framework web interativo
+- **Dashboard com 10 abas:** geográfica, temporal, clusters, anomalias, previsão, investigação, perfil de suspeitos, gravidade, modus operandi e estatísticas.
+- **Filtros globais:** período, bairros, tipos de crime, faixa horária e dias da semana.
+- **Mapas:** mapa de calor, clusters e pontos individuais (Folium / PyDeck).
+- **Machine Learning (scikit-learn, XGBoost, LightGBM):** K-Means, Isolation Forest e classificador de nível de risco.
+- **Módulo de segurança (demonstrativo):** login, criptografia Fernet dos arquivos gerados e log de auditoria.
+- **Dashboard extra** de Violência Doméstica (`dashboard_violencia_domestica.py`).
 
-### **Data Science & ML**
-- **Pandas 2.0+** - Manipulação de dados
-- **NumPy 1.24+** - Computação numérica
-- **Scikit-learn 1.3+** - Machine Learning
-- **XGBoost 1.7+** - Gradient boosting
-- **LightGBM 4.0+** - Modelos avançados
+## 🧪 Limitações conhecidas
 
-### **Visualização**
-- **Plotly 5.15+** - Gráficos interativos
-- **Folium 0.14+** - Mapas geográficos
-- **PyDeck 0.8+** - Visualização 3D
-- **Matplotlib/Seaborn** - Gráficos estatísticos
+Transparência sobre o estado atual do projeto:
 
-### **Segurança**
-- **Cryptography 41.0+** - Criptografia AES
-- **Hashlib** - Hash seguro
-- **Logging** - Auditoria
+- **Modelo de risco:** o "nível de risco" é definido pela contagem de ocorrências por bairro, e o bairro também é uma variável de entrada. Por isso a acurácia chega a ~100%, o que indica **vazamento de alvo (*target leakage*)** e não um bom desempenho preditivo. *(A corrigir.)*
+- **Clustering:** silhouette score ≈ 0,10, o que indica clusters pouco definidos, coerente com dados sintéticos.
+- **Segurança é apenas didática:** o login `admin/admin123` é um usuário de demonstração; as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O texto sobre LGPD é ilustrativo e não constitui conformidade legal.
+- Não há testes automatizados.
 
-## Instalação
+## 🛠️ Stack
 
-### **Pré-requisitos**
-- Python 3.8 ou superior
-- 4GB RAM mínimo
-- Windows 10/11, macOS, ou Linux
+Python · Streamlit · Pandas · NumPy · scikit-learn · XGBoost · LightGBM · Plotly · Folium · PyDeck · Matplotlib/Seaborn · cryptography
 
-### **Setup Rápido**
+## 🚀 Como executar
+
 ```bash
-# 1. Clonar repositório
-git clone https://github.com/seu-usuario/sistema-analise-criminal.git
-cd sistema-analise-criminal
+# 1. Clonar o repositório
+git clone https://github.com/<seu-usuario>/<nome-do-repositorio>.git
+cd <nome-do-repositorio>
 
-# 2. Instalar dependências
+# 2. (Recomendado) criar ambiente virtual
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+
+# 3. Instalar dependências
 pip install -r requirements.txt
 
-# 3. Configuração inicial
-python setup.py
-
-# 4. Executar análise
+# 4. Gerar os resultados da análise
 python advanced_analysis.py
 
-# 5. Iniciar dashboard
+# 5. Iniciar o dashboard principal
 streamlit run enhanced_app.py
+
+# 6. (Opcional) dashboard de Violência Doméstica
+streamlit run dashboard_violencia_domestica.py
 ```
 
-### **Acesso ao Sistema**
-- **URL:** http://localhost:8501
-- **Login:** `admin`
-- **Senha:** `admin123`
+Acesso local: <http://localhost:8501>
 
-## Uso do Sistema
+**Login de demonstração:** usuário `admin`, senha `admin123` (criado automaticamente na primeira execução; é só um exemplo e não deve ser usado em produção).
 
-### **10 Abas de Análise Especializadas:**
-
-1. **🌎 Geográfica** - Mapas de calor, clusters, pontos individuais
-2. **🕒 Temporal** - Padrões por hora/dia/semana
-3. **👥 Clusters** - Agrupamentos de crimes similares
-4. **🚨 Anomalias** - Detecção de padrões atípicos
-5. **🔮 Previsão** - Modelos preditivos de risco
-6. **👮 Investigação** - Desempenho por delegacia
-7. **🔫 Perfil Suspeitos** - Análise demográfica
-8. **🧬 Gravidade** - Índice de priorização
-9. **📝 Modus Operandi** - Padrões criminais
-10. **📊 Estatísticas** - KPIs e insights gerais
-
-### **Filtros Disponíveis:**
--  Período de análise
--  Bairros específicos
--  Tipos de crime
--  Faixa horária
--  Dias da semana
-
-## 📁 Estrutura do Projeto
+## 📁 Estrutura
 
 ```
-sistema-analise-criminal/
-├── enhanced_app.py          #  Dashboard principal
-├── dashboard_tabs.py        # Funções das abas
-├── advanced_analysis.py     # Análise e ML
-├── security_utils.py        # Segurança e LGPD
-├── setup.py                # Configuração inicial
-├── requirements.txt        # Dependências
-├── data/                   # Dataset
+├── enhanced_app.py                      # Dashboard principal (login + 10 abas)
+├── dashboard_tabs.py                    # Funções de cada aba
+├── dashboard_violencia_domestica.py     # Dashboard de Violência Doméstica
+├── advanced_analysis.py                 # Limpeza, clustering, anomalias e ML
+├── security_utils.py                    # Login, criptografia e validação de dados
+├── setup.py                             # Script de configuração inicial (em correção)
+├── requirements.txt
+├── data/
 │   └── dataset_ocorrencias_delegacia_5.csv
-├── .gitignore             #  Arquivos ignorados
-└── README.md              #  Documentação
+└── comoExecultar.md
 ```
 
-## 🔒 Recursos de Segurança
+## 📄 Licença
 
-- Criptografia AES-128 para dados sensíveis
-- Validação geográfica por bairros
-- Logs de auditoria automáticos
-- Controle de acesso por usuário
-
-## 🎓 Contexto Acadêmico
-
-Este projeto foi desenvolvido como atividade acadêmica para demonstrar:
-- Aplicação prática de Machine Learning
-- Desenvolvimento de dashboards interativos
-- Análise e visualização de dados
-- Implementação de sistemas web com Python
-
+Código distribuído sob a licença [MIT](LICENSE). O dataset em `data/` foi fornecido pelo professor e não é coberto por essa licença.
