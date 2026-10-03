@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import folium
 from streamlit_folium import st_folium
+from map_utils import new_folium_map, apply_plotly_basemap
 from datetime import datetime, timedelta
 from security_utils import DataValidator
 
@@ -313,7 +314,7 @@ def show_mapa_violencia(df):
         center_lat = df_clean['latitude'].mean()
         center_lon = df_clean['longitude'].mean()
         
-        m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+        m = new_folium_map([center_lat, center_lon], zoom_start=12)
         
         if tipo_mapa == "Mapa de Calor":
             from folium.plugins import HeatMap
@@ -1024,16 +1025,16 @@ def show_clustering_analysis(df):
             
             # Visualização dos clusters no mapa
             if 'latitude' in df_cluster.columns and 'longitude' in df_cluster.columns:
-                fig_map = px.scatter_mapbox(
+                fig_map = px.scatter_map(
                     df_cluster,
                     lat='latitude',
                     lon='longitude',
                     color='cluster_kmeans',
                     title="Clusters Geográficos (KMeans)",
-                    mapbox_style="open-street-map",
                     zoom=10,
                     height=400
                 )
+                apply_plotly_basemap(fig_map)
                 st.plotly_chart(fig_map, use_container_width=True)
         
         with col2:
@@ -1240,17 +1241,17 @@ def show_anomaly_detection(df):
             st.markdown("#### Mapa de Anomalias (Isolation Forest)")
             
             if 'latitude' in df_anomaly.columns and 'longitude' in df_anomaly.columns:
-                fig_iso = px.scatter_mapbox(
+                fig_iso = px.scatter_map(
                     df_anomaly,
                     lat='latitude',
                     lon='longitude',
                     color='anomaly_iso',
                     title="Anomalias Geográficas",
-                    mapbox_style="open-street-map",
                     color_discrete_map={1: 'blue', -1: 'red'},
                     zoom=10,
                     height=400
                 )
+                apply_plotly_basemap(fig_iso)
                 st.plotly_chart(fig_iso, use_container_width=True)
         
         with col2:

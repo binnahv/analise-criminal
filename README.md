@@ -31,19 +31,29 @@ O dataset contém **inconsistências propositais ou naturais de dados sintético
 
 - **Dashboard com 10 abas:** geográfica, temporal, clusters, anomalias, previsão, investigação, perfil de suspeitos, gravidade, modus operandi e estatísticas.
 - **Filtros globais:** período, bairros, tipos de crime, faixa horária e dias da semana.
-- **Mapas:** mapa de calor, clusters e pontos individuais (Folium / PyDeck).
-- **Machine Learning (scikit-learn, XGBoost, LightGBM):** K-Means, Isolation Forest e classificador de nível de risco.
+- **Mapas:** mapa de calor, clusters e pontos individuais (Folium / PyDeck), com mapa base gratuito (Esri) que não exige chave de API. É possível trocar o provedor pelas variáveis `MAP_TILE_URL` e `MAP_TILE_ATTR`.
+- **Machine Learning (scikit-learn, XGBoost, LightGBM):** K-Means, Isolation Forest e um classificador de ocorrência grave avaliado contra um baseline (acurácia e ROC AUC).
 - **Módulo de segurança (demonstrativo):** login, criptografia Fernet dos arquivos gerados e log de auditoria.
 - **Dashboard extra** de Violência Doméstica (`dashboard_violencia_domestica.py`).
 
+## 📈 Resultados
+
+| Etapa | Resultado | Interpretação |
+|---|---|---|
+| Limpeza | 5.000 → 3.482 registros válidos | Coordenadas inconsistentes foram descartadas |
+| Clustering (K-Means) | Silhouette ≈ 0,10 | Clusters pouco definidos |
+| Anomalias (Isolation Forest) | 175 registros (~5%) | Parâmetro de contaminação definido em 5% |
+| Modelo de ocorrência grave | Acurácia CV 0,593 vs. baseline 0,601; ROC AUC 0,487 | **Não supera o acaso** |
+
+O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latrocínio, estupro ou sequestro) a partir de bairro, dia, hora e mês. O resultado "ruim" é o esperado e **é um achado**: indica que o dataset não contém padrão real entre local/horário e gravidade.
+
 ## 🧪 Limitações conhecidas
 
-Transparência sobre o estado atual do projeto:
-
-- **Modelo de risco:** o "nível de risco" é definido pela contagem de ocorrências por bairro, e o bairro também é uma variável de entrada. Por isso a acurácia chega a ~100%, o que indica **vazamento de alvo (*target leakage*)** e não um bom desempenho preditivo. *(A corrigir.)*
-- **Clustering:** silhouette score ≈ 0,10, o que indica clusters pouco definidos, coerente com dados sintéticos.
-- **Segurança é apenas didática:** o login `admin/admin123` é um usuário de demonstração; as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O texto sobre LGPD é ilustrativo e não constitui conformidade legal.
-- Não há testes automatizados.
+- **Dados fictícios:** sem padrões reais, clustering e modelo preditivo servem como demonstração técnica de pipeline, não como conclusão sobre criminalidade.
+- **Histórico do modelo:** uma versão anterior previa "nível de risco" calculado pela contagem de ocorrências por bairro e usava o bairro como variável de entrada, o que gerava ~100% de acurácia por **vazamento de alvo (*target leakage*)**. O alvo foi redefinido para algo que não depende das features, e o modelo passou a ser comparado com um baseline.
+- A classificação "Baixo/Médio/Alto Risco" exibida em alguns gráficos é apenas **descritiva** (densidade de ocorrências por bairro) e não é prevista pelo modelo.
+- **Segurança é apenas didática:** o login `admin/admin123` é de demonstração; as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
+- O app foi testado com dados do dataset fornecido; não há suíte de testes de interface.
 
 ## 🛠️ Stack
 
@@ -73,6 +83,13 @@ streamlit run enhanced_app.py
 streamlit run dashboard_violencia_domestica.py
 ```
 
+### Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
 Acesso local: <http://localhost:8501>
 
 **Login de demonstração:** usuário `admin`, senha `admin123` (criado automaticamente na primeira execução; é só um exemplo e não deve ser usado em produção).
@@ -85,13 +102,18 @@ Acesso local: <http://localhost:8501>
 ├── dashboard_violencia_domestica.py     # Dashboard de Violência Doméstica
 ├── advanced_analysis.py                 # Limpeza, clustering, anomalias e ML
 ├── security_utils.py                    # Login, criptografia e validação de dados
-├── setup.py                             # Script de configuração inicial (em correção)
+├── map_utils.py                         # Mapa base gratuito e sem chave de API
+├── setup.py                             # Configuração inicial (opcional)
 ├── requirements.txt
+├── requirements-dev.txt                 # pytest (opcional)
+├── tests/
+│   └── test_core.py                     # Testes automatizados
 ├── data/
 │   └── dataset_ocorrencias_delegacia_5.csv
-└── comoExecultar.md
+├── comoExecultar.md
+└── LICENSE.md
 ```
 
 ## 📄 Licença
 
-Código distribuído sob a licença [MIT](LICENSE). O dataset em `data/` foi fornecido pelo professor e não é coberto por essa licença.
+Código distribuído sob a licença [MIT](LICENSE.md). O dataset em `data/` foi fornecido pelo professor e não é coberto por essa licença.

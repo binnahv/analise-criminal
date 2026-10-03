@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import folium
 from streamlit_folium import st_folium
+from map_utils import new_folium_map
 import os
 from security_utils import SecurityManager
 
@@ -60,7 +61,7 @@ def create_scatter_map(df, show_anomalies):
     center_lat = df_valid['latitude'].mean()
     center_lon = df_valid['longitude'].mean()
     
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+    m = new_folium_map([center_lat, center_lon], zoom_start=12)
     
     # Adicionar pontos normais (usando apenas coordenadas válidas)
     normal_data = df_valid[df_valid['anomalia'] != -1] if 'anomalia' in df_valid.columns else df_valid
@@ -395,7 +396,10 @@ def show_anomaly_analysis(df):
 
 def show_risk_prediction():
     """Aba de previsão de risco"""
-    st.header("🔮 Previsão de Risco de Criminalidade")
+    st.header("🔮 Estimativa: ocorrência grave por local e horário")
+    st.info("Modelo demonstrativo: estima a probabilidade de uma ocorrência ser um crime grave "
+            "(homicídio, latrocínio, estupro ou sequestro) a partir de bairro, dia e hora. "
+            "Como o dataset é fictício, o modelo tende a não superar o acaso; veja as métricas abaixo.")
     
     # Tentar carregar modelo
     security_manager = SecurityManager()
@@ -444,7 +448,7 @@ def show_risk_prediction():
     with col3:
         selected_hora = st.slider("Selecione a Hora", 0, 23, 19)
     
-    if st.button("🔮 Prever Nível de Risco", type="primary"):
+    if st.button("🔮 Estimar probabilidade", type="primary"):
         try:
             # Preparar dados para previsão
             input_data = pd.DataFrame(0, index=[0], columns=model_data['model_columns'])
@@ -461,63 +465,33 @@ def show_risk_prediction():
             if 'hora' in input_data.columns:
                 input_data['hora'] = selected_hora
             
-            # Fazer previsão
+            # Fazer previsão (probabilidade da classe "ocorrência grave")
             model = model_data['model']
-            
-            if 'target_encoder' in model_data:
-                # XGBoost com encoder
-                prediction_encoded = model.predict(input_data)[0]
-                prediction = model_data['target_encoder'].inverse_transform([prediction_encoded])[0]
-                proba = model.predict_proba(input_data).max() * 100
-            else:
-                # Outros modelos
-                prediction = model.predict(input_data)[0]
-                proba = model.predict_proba(input_data).max() * 100
-            
-            # Exibir resultado
-            st.subheader("📊 Resultado da Previsão")
-            
+            proba_grave = float(model.predict_proba(input_data)[0][1]) * 100
+
+            st.subheader("📊 Resultado da Estimativa")
             col1, col2 = st.columns(2)
-            
             with col1:
-                if "Alto" in prediction:
-                    st.error(f"🔴 **Nível de Risco: {prediction}**")
-                elif "Médio" in prediction:
-                    st.warning(f"🟡 **Nível de Risco: {prediction}**")
-                else:
-                    st.success(f"🟢 **Nível de Risco: {prediction}**")
-            
+                st.metric("Probabilidade de ocorrência grave", f"{proba_grave:.1f}%")
             with col2:
-                st.metric("🎯 Confiança", f"{proba:.1f}%")
-            
-            # Recomendações
-            st.subheader("💡 Recomendações")
-            
-            if "Alto" in prediction:
-                st.error("""
-                **Ações Recomendadas:**
-                • Aumentar patrulhamento na área
-                • Considerar rondas preventivas
-                • Alertar equipes próximas
-                • Monitorar atividades suspeitas
-                """)
-            elif "Médio" in prediction:
-                st.warning("""
-                **Ações Recomendadas:**
-                • Manter patrulhamento regular
-                • Estar atento a mudanças no padrão
-                • Coordenar com outras unidades
-                """)
-            else:
-                st.success("""
-                **Situação Normal:**
-                • Patrulhamento de rotina
-                • Foco em outras áreas prioritárias
-                """)
-                
+                base = model_data.get('metrics', {}).get('baseline_accuracy')
+                if base is not None:
+                    st.metric("Referência (baseline)", f"{(1 - base) * 100:.1f}%",
+                              help="Proporção de ocorrências graves no conjunto de treino/teste.")
+
+            metrics = model_data.get('metrics')
+            if metrics:
+                st.caption(
+                    f"Validação cruzada: acurácia {metrics['cv_accuracy']:.3f} | "
+                    f"baseline {metrics['baseline_accuracy']:.3f} | "
+                    f"ROC AUC {metrics['cv_roc_auc']:.3f} (0,5 = acaso). "
+                    "Se a acurácia não supera o baseline e o AUC fica perto de 0,5, "
+                    "o modelo não encontrou padrão real nos dados."
+                )
+
         except Exception as e:
             st.error(f"Erro na previsão: {str(e)}")
-    
+
     # Feature Importance
     if 'model' in model_data:
         st.subheader("📈 Importância das Variáveis")
@@ -544,7 +518,7 @@ def show_risk_prediction():
 
 def show_investigative_performance(df):
     """Aba de desempenho investigativo"""
-    st.header("👮 Desempenho Investigativo - Polícia Civil")
+    st.header("👮 Desempenho Investigativo")
     
     if 'status_investigacao' not in df.columns or 'orgao_responsavel' not in df.columns:
         st.warning("Dados de investigação não disponíveis no dataset atual.")

@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import folium
 from streamlit_folium import st_folium
+from map_utils import new_folium_map
 from folium.plugins import HeatMap, MarkerCluster
 import pydeck as pdk
 from datetime import datetime, timedelta
@@ -20,7 +21,7 @@ from dashboard_tabs import (
 
 # Configuração da página
 st.set_page_config(
-    page_title="Sistema de Análise Criminal - Polícia Civil",
+    page_title="Sistema de Análise Criminal",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -67,7 +68,7 @@ class EnhancedCriminalDashboard:
             st.session_state.authenticated = False
         
         if not st.session_state.authenticated:
-            st.markdown('<div class="main-header"><h1> Sistema de Análise Criminal</h1><p>Acesso Restrito - Polícia Civil</p></div>', unsafe_allow_html=True)
+            st.markdown('<div class="main-header"><h1> Sistema de Análise Criminal</h1><p>Projeto acadêmico • dados fictícios</p></div>', unsafe_allow_html=True)
             
             with st.form("login_form"):
                 st.subheader("🔐 Autenticação Necessária")
@@ -87,7 +88,7 @@ class EnhancedCriminalDashboard:
                     else:
                         st.error("Usuário ou senha incorretos")
             
-            st.info("**Usuário padrão:** admin | **Senha:** admin123")
+            st.info("**Login de demonstração** — usuário: admin | senha: admin123")
             return False
         
         # Verificar timeout da sessão
@@ -457,11 +458,7 @@ def create_heatmap(df, show_anomalies):
     center_lon = df_valid['longitude'].mean()
     
     # Criar mapa base
-    m = folium.Map(
-        location=[center_lat, center_lon],
-        zoom_start=12,
-        tiles="CartoDB dark_matter"
-    )
+    m = new_folium_map([center_lat, center_lon], zoom_start=12, dark=True)
     
     # Dados para heatmap (usando coordenadas válidas)
     heat_data = [[row['latitude'], row['longitude']] for _, row in df_valid.iterrows()]
@@ -532,7 +529,7 @@ def create_cluster_map(df, show_anomalies, show_clusters=True):
     center_lat = df_valid['latitude'].mean()
     center_lon = df_valid['longitude'].mean()
     
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+    m = new_folium_map([center_lat, center_lon], zoom_start=12)
     
     # Cores para clusters
     colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred', 'lightred', 'beige', 'darkblue', 'darkgreen']
