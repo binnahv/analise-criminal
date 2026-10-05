@@ -1,6 +1,6 @@
 """
 Módulo de Segurança e Utilitários para Análise Criminal
-Implementa criptografia, controle de acesso e conformidade com LGPD
+Implementa criptografia, controle de acesso e validação de dados (demonstração acadêmica)
 """
 
 import pickle
@@ -75,22 +75,48 @@ class SecurityManager:
         """Gera hash da senha"""
         return hashlib.sha256(password.encode()).hexdigest()
     
-    def authenticate_user(self, username, password):
-        """Autentica usuário"""
+    def _load_users(self):
+        """Carrega os usuários; cria o usuário de demonstração se o arquivo não existir"""
         if not os.path.exists(self.users_file):
-            # Criar usuário padrão admin/admin123 na primeira execução
-            default_users = {
+            # Usuário de DEMONSTRAÇÃO (projeto acadêmico). Não usar em produção.
+            self._save_users({
                 'admin': {
                     'password': self.hash_password('admin123'),
                     'role': 'admin',
                     'permissions': ['read', 'write', 'admin']
                 }
-            }
-            with open(self.users_file, 'wb') as f:
-                pickle.dump(default_users, f)
-        
+            })
         with open(self.users_file, 'rb') as f:
-            users = pickle.load(f)
+            return pickle.load(f)
+
+    def _save_users(self, users):
+        with open(self.users_file, 'wb') as f:
+            pickle.dump(users, f)
+
+    def ensure_default_user(self):
+        """Garante que exista o usuário de demonstração (admin). Retorna True se ok."""
+        return 'admin' in self._load_users()
+
+    def create_user(self, username, password, role='analyst', permissions=None):
+        """Cria um usuário. Retorna True se criou e False se o usuário já existia
+        ou se os dados forem inválidos."""
+        if not username or not password:
+            return False
+        users = self._load_users()
+        if username in users:
+            return False
+        users[username] = {
+            'password': self.hash_password(password),
+            'role': role,
+            'permissions': permissions or ['read'],
+        }
+        self._save_users(users)
+        logging.info(f"Usuário criado: {username}")
+        return True
+
+    def authenticate_user(self, username, password):
+        """Autentica usuário"""
+        users = self._load_users()
         
         if username in users:
             if users[username]['password'] == self.hash_password(password):
@@ -227,19 +253,17 @@ class DataValidator:
         return df_clean
 
 def show_lgpd_notice():
-    """Exibe aviso de conformidade com LGPD"""
+    """Exibe aviso (demonstrativo) sobre boas práticas de privacidade"""
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔒 Conformidade LGPD")
+    st.sidebar.markdown("### 🔒 Privacidade (demonstração)")
     with st.sidebar.expander("Política de Privacidade"):
         st.write("""
-        **Tratamento de Dados Pessoais:**
-        - Dados são utilizados exclusivamente para análise de segurança pública
-        - Acesso restrito a usuários autorizados
-        - Dados sensíveis são anonimizados
-        - Retenção por 5 anos conforme legislação
-        - Direito de acesso, correção e exclusão garantidos
-        
-        **Contato DPO:** dpo@seguranca.gov.br
+        **Projeto acadêmico com dados fictícios.**
+
+        Este painel demonstra boas práticas inspiradas na LGPD, como
+        anonimização de colunas sensíveis, log de acesso e controle de sessão.
+        Ele **não** representa conformidade legal completa e não deve ser usado
+        com dados pessoais reais sem uma avaliação jurídica e de segurança.
         """)
 
 def show_model_limitations():

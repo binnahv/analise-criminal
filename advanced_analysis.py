@@ -176,99 +176,98 @@ class AdvancedCriminalAnalysis:
         
         print(f"Anomalias detectadas: {sum(anomalies == -1)} de {len(anomalies)} ({sum(anomalies == -1)/len(anomalies)*100:.1f}%)")
     
+    # Tipos de crime considerados graves (alvo do modelo). O alvo NÃO é derivado
+    # de bairro/hora/dia, portanto não há vazamento de informação (target leakage).
+    CRIMES_GRAVES = ['Homicídio', 'Latrocínio', 'Estupro', 'Sequestro']
+
     def train_risk_prediction_model(self, model_type='xgboost'):
-        """Treina modelo de previsão de risco"""
-        print(f"Treinando modelo de previsão de risco com {model_type}...")
-        
-        # Criar variável alvo baseada em densidade de crimes por bairro
+        """Treina modelo que estima a probabilidade de uma ocorrência ser GRAVE
+        a partir de onde (bairro) e quando (hora, dia, mês) ela acontece.
+
+        Observações metodológicas:
+        - O alvo (crime grave: sim/não) é definido pelo tipo de crime, que não é
+          usado como feature. Na versão anterior o alvo era calculado a partir do
+          bairro e o bairro também era feature, o que gerava acurácia de 100%
+          (vazamento de alvo).
+        - O resultado é comparado com um baseline (sempre prever a classe
+          majoritária) e avaliado por ROC AUC, para mostrar se o modelo realmente
+          aprende algo além do acaso.
+        """
+        from sklearn.dummy import DummyClassifier
+
+        print(f"Treinando modelo de ocorrência grave com {model_type}...")
+
+        # Classificação DESCRITIVA por densidade de ocorrências no bairro
+        # (usada apenas nos gráficos; NÃO é o alvo do modelo)
         bairro_counts = self.df['bairro'].value_counts()
-        
-        # Usar quantis para criar níveis de risco mais balanceados
-        q33 = bairro_counts.quantile(0.33)
-        q66 = bairro_counts.quantile(0.66)
-        
-        def classify_risk(bairro):
+        q33, q66 = bairro_counts.quantile(0.33), bairro_counts.quantile(0.66)
+
+        def classify_density(bairro):
             count = bairro_counts.get(bairro, 0)
             if count <= q33:
                 return 'Baixo Risco'
             elif count <= q66:
                 return 'Médio Risco'
-            else:
-                return 'Alto Risco'
-        
-        self.df['nivel_risco'] = self.df['bairro'].apply(classify_risk)
-        
-        # Preparar features para o modelo
+            return 'Alto Risco'
+
+        self.df['nivel_risco'] = self.df['bairro'].apply(classify_density)
+
+        # Alvo do modelo: ocorrência grave (1) ou não (0)
+        self.df['ocorrencia_grave'] = self.df['tipo_crime'].isin(self.CRIMES_GRAVES).astype(int)
+
         features_pred = ['bairro', 'hora', 'dia_semana', 'mes', 'periodo_dia', 'fim_semana']
-        target = 'nivel_risco'
-        
+        target = 'ocorrencia_grave'
+
         df_model = self.df.dropna(subset=features_pred + [target]).copy()
-        
-        # Encoding de variáveis categóricas
         X = pd.get_dummies(df_model[features_pred], drop_first=True)
         y = df_model[target]
-        
-        # Salvar colunas do modelo para uso posterior
         self.model_columns = X.columns.tolist()
-        
-        # Split dos dados
+
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
-        
-        # Treinar modelo
+
         if model_type == 'xgboost':
-            # Encoding do target para XGBoost
-            le_target = LabelEncoder()
-            y_train_encoded = le_target.fit_transform(y_train)
-            y_test_encoded = le_target.transform(y_test)
-            
             model = xgb.XGBClassifier(
-                random_state=42,
-                n_estimators=100,
-                max_depth=6,
-                learning_rate=0.1,
-                eval_metric='mlogloss'
+                random_state=42, n_estimators=100, max_depth=3,
+                learning_rate=0.05, eval_metric='logloss'
             )
-            model.fit(X_train, y_train_encoded)
-            
-            # Converter predições de volta
-            pred_encoded = model.predict(X_test)
-            pred = le_target.inverse_transform(pred_encoded)
-            
-            # Salvar label encoder
-            self.target_encoder = le_target
-            
         elif model_type == 'lightgbm':
             model = lgb.LGBMClassifier(
-                random_state=42,
-                n_estimators=100,
-                max_depth=6,
-                learning_rate=0.1,
-                verbose=-1
+                random_state=42, n_estimators=100, max_depth=3,
+                learning_rate=0.05, verbose=-1
             )
-            model.fit(X_train, y_train)
-            pred = model.predict(X_test)
-            
-        else:  # random_forest
+        else:
             model = RandomForestClassifier(
-                random_state=42,
-                n_estimators=100,
-                max_depth=10,
+                random_state=42, n_estimators=100, max_depth=5,
                 class_weight='balanced'
             )
-            model.fit(X_train, y_train)
-            pred = model.predict(X_test)
-        
-        # Avaliar modelo
+
+        model.fit(X_train, y_train)
+        pred = model.predict(X_test)
         class_report = classification_report(y_test, pred, output_dict=True, zero_division=0)
-        
-        # Cross-validation
-        cv_scores = cross_val_score(model, X, y if model_type != 'xgboost' else le_target.transform(y), cv=5)
-        
-        print(f"Acurácia média (CV): {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})")
-        
-        # Salvar modelo e metadados
+
+        # Baseline: sempre prever a classe mais frequente
+        baseline = DummyClassifier(strategy='most_frequent').fit(X_train, y_train)
+        baseline_acc = float(baseline.score(X_test, y_test))
+
+        # Validação cruzada (acurácia e ROC AUC)
+        cv_acc = cross_val_score(model, X, y, cv=5, scoring='accuracy')
+        cv_auc = cross_val_score(model, X, y, cv=5, scoring='roc_auc')
+
+        print(f"Baseline (classe majoritária): {baseline_acc:.3f}")
+        print(f"Acurácia média (CV): {cv_acc.mean():.3f} (+/- {cv_acc.std() * 2:.3f})")
+        print(f"ROC AUC médio (CV): {cv_auc.mean():.3f}  (0.5 = equivalente ao acaso)")
+        if cv_auc.mean() < 0.55:
+            print("Aviso: o modelo não supera o acaso de forma relevante. "
+                  "Isso é esperado se os dados forem sintéticos/aleatórios.")
+
+        self.model_metrics = {
+            'baseline_accuracy': baseline_acc,
+            'cv_accuracy': float(cv_acc.mean()),
+            'cv_roc_auc': float(cv_auc.mean()),
+        }
+
         model_data = {
             'model': model,
             'model_columns': self.model_columns,
@@ -276,18 +275,15 @@ class AdvancedCriminalAnalysis:
             'dias_semana_list': df_model['dia_semana'].unique().tolist(),
             'feature_names': features_pred,
             'model_type': model_type,
-            'cv_scores': cv_scores,
-            'class_report': class_report
+            'target_name': target,
+            'cv_scores': cv_acc,
+            'class_report': class_report,
+            'metrics': self.model_metrics,
         }
-        
-        if model_type == 'xgboost':
-            model_data['target_encoder'] = self.target_encoder
-        
-        # Salvar modelo criptografado
+
         self.security_manager.save_encrypted_model(model_data, 'risk_model_secure.pkl')
-        
-        return class_report, cv_scores.mean()
-    
+        return class_report, cv_acc.mean()
+
     def get_feature_importance(self, model_data):
         """Obtém importância das features do modelo"""
         model = model_data['model']
@@ -347,7 +343,9 @@ def main():
     print(f"\n=== Resumo da Análise ===")
     print(f"Total de registros processados: {len(df)}")
     print(f"Silhouette Score: {sil_score:.3f}")
-    print(f"Acurácia do modelo de risco: {cv_accuracy:.3f}")
+    m = analysis.model_metrics
+    print(f"Modelo de ocorrência grave -> acurácia CV: {cv_accuracy:.3f} | "
+          f"baseline: {m['baseline_accuracy']:.3f} | ROC AUC: {m['cv_roc_auc']:.3f}")
     print(f"Anomalias detectadas: {sum(df['anomalia'] == -1)}")
     
     print("\nAnálise concluída! Execute o dashboard com:")

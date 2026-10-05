@@ -22,10 +22,11 @@ def install_requirements():
     """Instala as dependências necessárias"""
     print("📦 Instalando dependências...")
     try:
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install", "-r", "requirements.txt", 
-            "--upgrade", "--user"
-        ])
+        cmd = [sys.executable, "-m", "pip", "install", "-r", "requirements.txt", "--upgrade"]
+        # "--user" só funciona fora de ambiente virtual (dentro do venv causa erro)
+        if sys.prefix == getattr(sys, "base_prefix", sys.prefix):
+            cmd.append("--user")
+        subprocess.check_call(cmd)
         print("✅ Dependências instaladas com sucesso!")
         return True
     except subprocess.CalledProcessError as e:
@@ -84,15 +85,15 @@ def setup_user():
         from security_utils import SecurityManager
         security_manager = SecurityManager()
         
-        if not os.path.exists("users.pkl"):
-            success = security_manager.create_user("admin", "admin123")
-            if success:
-                print("✅ Usuário admin criado: admin/admin123")
+        existed = os.path.exists("users.pkl")
+        if security_manager.ensure_default_user():
+            if existed:
+                print("✅ Base de usuários já existe!")
             else:
-                print("❌ Erro ao criar usuário admin")
-                return False
+                print("✅ Usuário de demonstração criado: admin/admin123")
         else:
-            print("✅ Base de usuários já existe!")
+            print("❌ Erro ao criar usuário admin")
+            return False
         return True
     except Exception as e:
         print(f"❌ Erro na configuração de usuário: {e}")

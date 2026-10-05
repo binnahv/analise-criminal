@@ -4,6 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
+[![Testes](https://github.com/<seu-usuario>/<nome-do-repositorio>/actions/workflows/tests.yml/badge.svg)](https://github.com/<seu-usuario>/<nome-do-repositorio>/actions)
 
 ## 🎯 Sobre o projeto
 
@@ -26,6 +27,12 @@ O dataset contém **inconsistências propositais ou naturais de dados sintético
 | Delegacia responsável sem relação com o bairro da ocorrência | Identificado como limitação dos dados |
 
 > 🔎 Como os dados parecem gerados aleatoriamente, **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
+
+<!-- Depois de tirar os prints, coloque as imagens em docs/ e descomente:
+## 🖼️ Screenshots
+![Mapa de calor](docs/mapa.png)
+![Previsão](docs/previsao.png)
+-->
 
 ## ✨ Funcionalidades
 
@@ -53,7 +60,7 @@ O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latroc�
 - **Histórico do modelo:** uma versão anterior previa "nível de risco" calculado pela contagem de ocorrências por bairro e usava o bairro como variável de entrada, o que gerava ~100% de acurácia por **vazamento de alvo (*target leakage*)**. O alvo foi redefinido para algo que não depende das features, e o modelo passou a ser comparado com um baseline.
 - A classificação "Baixo/Médio/Alto Risco" exibida em alguns gráficos é apenas **descritiva** (densidade de ocorrências por bairro) e não é prevista pelo modelo.
 - **Segurança é apenas didática:** o login `admin/admin123` é de demonstração; as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
-- O app foi testado com dados do dataset fornecido; não há suíte de testes de interface.
+- Os testes cobrem login, criptografia, validação de dados e o alvo do modelo; não há testes automatizados de interface.
 
 ## 🛠️ Stack
 
@@ -110,7 +117,7 @@ Acesso local: <http://localhost:8501>
 │   └── test_core.py                     # Testes automatizados
 ├── data/
 │   └── dataset_ocorrencias_delegacia_5.csv
-├── comoExecultar.md
+├── .github/workflows/tests.yml          # Testes automáticos (CI)
 └── LICENSE.md
 ```
 
