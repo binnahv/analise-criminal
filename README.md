@@ -59,7 +59,7 @@ O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latroc�
 - **Dados fictícios:** sem padrões reais, clustering e modelo preditivo servem como demonstração técnica de pipeline, não como conclusão sobre criminalidade.
 - **Histórico do modelo:** uma versão anterior previa "nível de risco" calculado pela contagem de ocorrências por bairro e usava o bairro como variável de entrada, o que gerava ~100% de acurácia por **vazamento de alvo (*target leakage*)**. O alvo foi redefinido para algo que não depende das features, e o modelo passou a ser comparado com um baseline.
 - A classificação "Baixo/Médio/Alto Risco" exibida em alguns gráficos é apenas **descritiva** (densidade de ocorrências por bairro) e não é prevista pelo modelo.
-- **Segurança é apenas didática:** o login `admin/admin123` é de demonstração; as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
+- **Segurança é apenas didática:** o login `admin` é de demonstração e sua senha é gerada aleatoriamente na primeira execução (nada de senha fixa no código); as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
 - Os testes cobrem login, criptografia, validação de dados e o alvo do modelo; não há testes automatizados de interface.
 
 ## 🛠️ Stack
@@ -99,7 +99,24 @@ pytest -q
 
 Acesso local: <http://localhost:8501>
 
-**Login de demonstração:** usuário `admin`, senha `admin123` (criado automaticamente na primeira execução; é só um exemplo e não deve ser usado em produção).
+**Login de demonstração:** usuário `admin`. Na primeira execução o app gera uma **senha aleatória e a mostra no terminal** (aparece só uma vez):
+
+```
+============================================================
+  LOGIN DE DEMONSTRAÇÃO CRIADO (aparece só desta vez)
+  Usuário: admin
+  Senha:   xxxxxxxxxxxx
+============================================================
+```
+
+Para escolher a sua própria senha, defina a variável de ambiente antes de iniciar o app:
+
+```bash
+export ADMIN_PASSWORD="minha-senha"      # Windows (PowerShell): $env:ADMIN_PASSWORD="minha-senha"
+streamlit run enhanced_app.py
+```
+
+> A senha só é definida quando o arquivo `users.pkl` é criado. Para trocá-la depois, apague o `users.pkl` e inicie o app de novo.
 
 ## 📁 Estrutura
 

@@ -90,7 +90,7 @@ def setup_user():
             if existed:
                 print("✅ Base de usuários já existe!")
             else:
-                print("✅ Usuário de demonstração criado: admin/admin123")
+                print("✅ Usuário de demonstração criado (veja a senha acima)")
         else:
             print("❌ Erro ao criar usuário admin")
             return False
@@ -155,7 +155,7 @@ def main():
     print("\n📋 Como usar:")
     print("1. 🚀 Iniciar: streamlit run enhanced_app.py")
     print("2. 🌐 Acessar: http://localhost:8501")
-    print("3. 🔑 Login: admin / Senha: admin123")
+    print("3. 🔑 Login: admin / senha exibida no terminal (ou ADMIN_PASSWORD)")
     
     if not has_data:
         print("\n⚠️ Lembre-se de adicionar o dataset em data/")

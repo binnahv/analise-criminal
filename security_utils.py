@@ -6,6 +6,7 @@ Implementa criptografia, controle de acesso e validação de dados (demonstraç�
 import pickle
 import os
 import hashlib
+import secrets
 import streamlit as st
 from cryptography.fernet import Fernet
 from datetime import datetime, timedelta
@@ -76,16 +77,31 @@ class SecurityManager:
         return hashlib.sha256(password.encode()).hexdigest()
     
     def _load_users(self):
-        """Carrega os usuários; cria o usuário de demonstração se o arquivo não existir"""
+        """Carrega os usuários; cria o admin de demonstração se o arquivo não existir.
+
+        A senha do admin NUNCA fica escrita no código:
+        - se a variável de ambiente ADMIN_PASSWORD existir, ela é usada;
+        - caso contrário, uma senha aleatória é gerada e exibida UMA vez no terminal.
+        """
         if not os.path.exists(self.users_file):
-            # Usuário de DEMONSTRAÇÃO (projeto acadêmico). Não usar em produção.
+            password = os.getenv("ADMIN_PASSWORD")
+            generated = not password
+            if generated:
+                password = secrets.token_urlsafe(9)  # ~12 caracteres aleatórios
             self._save_users({
                 'admin': {
-                    'password': self.hash_password('admin123'),
+                    'password': self.hash_password(password),
                     'role': 'admin',
                     'permissions': ['read', 'write', 'admin']
                 }
             })
+            if generated:
+                print("\n" + "=" * 60)
+                print("  LOGIN DE DEMONSTRAÇÃO CRIADO (aparece só desta vez)")
+                print("  Usuário: admin")
+                print(f"  Senha:   {password}")
+                print("  Para definir a sua: use a variável ADMIN_PASSWORD")
+                print("=" * 60 + "\n", flush=True)
         with open(self.users_file, 'rb') as f:
             return pickle.load(f)
 

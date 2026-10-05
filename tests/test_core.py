@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from security_utils import DataValidator, SecurityManager  # noqa: E402
 
+SENHA_TESTE = "senha-de-teste-123"
 DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "data", "dataset_ocorrencias_delegacia_5.csv")
 
@@ -17,12 +18,29 @@ DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 def manager(tmp_path, monkeypatch):
     """SecurityManager isolado em uma pasta temporária (não toca nos arquivos reais)."""
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ADMIN_PASSWORD", SENHA_TESTE)
     return SecurityManager()
 
 
-def test_usuario_demo_criado_automaticamente(manager):
-    ok, user = manager.authenticate_user("admin", "admin123")
+def test_admin_usa_senha_da_variavel_de_ambiente(manager):
+    ok, user = manager.authenticate_user("admin", SENHA_TESTE)
     assert ok and user["role"] == "admin"
+
+
+def test_senha_antiga_fixa_nao_funciona(manager):
+    assert manager.authenticate_user("admin", "admin123")[0] is False
+
+
+def test_senha_aleatoria_gerada_e_mostrada_no_terminal(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+    manager = SecurityManager()
+    manager.ensure_default_user()
+    saida = capsys.readouterr().out
+    assert "Senha:" in saida
+    senha = saida.split("Senha:")[1].split()[0]
+    assert len(senha) >= 10 and senha != "admin123"
+    assert manager.authenticate_user("admin", senha)[0] is True
 
 
 def test_login_com_senha_errada_falha(manager):

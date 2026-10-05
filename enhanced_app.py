@@ -59,6 +59,7 @@ class EnhancedCriminalDashboard:
     
     def __init__(self):
         self.security_manager = SecurityManager()
+        self.security_manager.ensure_default_user()  # cria o admin (e mostra a senha no terminal) na 1ª execução
         self.lgpd = LGPDCompliance()
         self.validator = DataValidator()
         
@@ -88,7 +89,7 @@ class EnhancedCriminalDashboard:
                     else:
                         st.error("Usuário ou senha incorretos")
             
-            st.info("**Login de demonstração** — usuário: admin | senha: admin123")
+            st.info("**Login de demonstração** — usuário: `admin`. A senha é exibida no terminal na primeira execução (ou definida em `ADMIN_PASSWORD`).")
             return False
         
         # Verificar timeout da sessão
