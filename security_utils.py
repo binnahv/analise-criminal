@@ -288,8 +288,12 @@ def show_model_limitations():
     ⚠️ **IMPORTANTE - Limitações do Sistema:**
     
     • **Uso Auxiliar:** Este sistema é uma ferramenta de apoio à decisão, não substitui o julgamento profissional
+
     • **Dados Históricos:** Previsões baseadas em padrões passados podem não refletir situações futuras
+
     • **Novos Padrões:** O modelo pode não detectar crimes com características inéditas
+
     • **Validação Necessária:** Sempre cruzar com informações de campo e outras fontes
+    
     • **Atualização Regular:** Modelo deve ser retreinado periodicamente com novos dados
     """)

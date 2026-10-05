@@ -28,11 +28,10 @@ O dataset contém **inconsistências propositais ou naturais de dados sintético
 
 > 🔎 Como os dados parecem gerados aleatoriamente, **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
 
-<!-- Depois de tirar os prints, coloque as imagens em docs/ e descomente:
 ## 🖼️ Screenshots
 ![Mapa de calor](docs/mapa.png)
 ![Previsão](docs/previsao.png)
--->
+
 
 ## ✨ Funcionalidades
 
