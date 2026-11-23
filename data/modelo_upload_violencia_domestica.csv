@@ -1,0 +1,25 @@
+data_ocorrencia,tipo_crime,bairro,latitude,longitude,arma_utilizada,quantidade_vitimas,quantidade_suspeitos,sexo_suspeito,idade_suspeito,status_investigacao,orgao_responsavel,descricao_modus_operandi
+2026-01-05 20:00:00,Ameaça,Boa Viagem,-8.1154,-34.8967,Faca,1,2,Masculino,21,Em Investigação,Delegacia Boa Viagem,Ameaça por Telefone
+2026-01-14 02:15:00,Estupro,Pina,-8.0913,-34.8856,Arma de Fogo,1,1,Masculino,55,Arquivado,Delegacia Boa Viagem,Violência Sexual
+2026-01-02 13:00:00,Estupro,Imbiribeira,-8.1095,-34.9089,Objeto Contundente,1,2,Masculino,55,Concluído,Delegacia Boa Viagem,Violência Sexual
+2026-02-04 23:15:00,Ameaça,Afogados,-8.069,-34.9176,Nenhum,1,2,Masculino,50,Arquivado,Delegacia Afogados,Ameaça Verbal
+2026-02-25 19:45:00,Estupro,Santo Amaro,-8.0713,-34.8884,Faca,1,1,Masculino,24,Arquivado,Delegacia Santo Amaro,Violência Sexual
+2026-02-17 21:30:00,Ameaça,Graças,-8.0552,-34.9007,Nenhum,1,2,Feminino,29,Concluído,Delegacia Torre,Ameaça por Telefone
+2026-03-16 20:00:00,Ameaça,Torre,-8.0513,-34.9124,Arma de Fogo,1,1,Masculino,57,Concluído,Delegacia Torre,Ameaça Verbal
+2026-03-03 02:30:00,Estupro,Espinheiro,-8.0542,-34.8957,Nenhum,1,2,Não Informado,37,Arquivado,Delegacia Torre,Violência Sexual
+2026-03-22 19:00:00,Estupro,Boa Viagem,-8.1085,-34.8982,Arma de Fogo,1,1,Masculino,32,Concluído,Delegacia Boa Viagem,Violência Sexual
+2026-04-24 13:45:00,Ameaça,Pina,-8.0889,-34.882,Nenhum,1,1,Feminino,54,Concluído,Delegacia Boa Viagem,Ameaça Verbal
+2026-04-27 20:30:00,Ameaça,Imbiribeira,-8.1083,-34.9021,Objeto Contundente,1,1,Masculino,30,Em Investigação,Delegacia Boa Viagem,Ameaça Verbal
+2026-04-22 13:00:00,Ameaça,Afogados,-8.0681,-34.9173,Faca,1,1,Masculino,45,Arquivado,Delegacia Afogados,Ameaça Verbal
+2026-05-20 23:30:00,Ameaça,Santo Amaro,-8.0684,-34.8865,Arma de Fogo,1,1,Feminino,44,Concluído,Delegacia Santo Amaro,Ameaça por Telefone
+2026-05-04 21:45:00,Estupro,Graças,-8.0605,-34.9025,Nenhum,2,1,Masculino,40,Arquivado,Delegacia Torre,Violência Sexual
+2026-05-04 01:15:00,Violência Doméstica,Torre,-8.0547,-34.9054,Arma de Fogo,1,1,Masculino,58,Concluído,Delegacia Torre,Agressão Física
+2026-06-21 18:30:00,Ameaça,Espinheiro,-8.0532,-34.8972,Nenhum,2,1,Não Informado,49,Concluído,Delegacia Torre,Ameaça Verbal
+2026-06-05 02:30:00,Violência Doméstica,Boa Viagem,-8.1101,-34.8972,Nenhum,1,1,Masculino,28,Arquivado,Delegacia Boa Viagem,Agressão Física
+2026-06-25 22:30:00,Violência Doméstica,Pina,-8.0842,-34.8821,Faca,1,1,Masculino,33,Arquivado,Delegacia Boa Viagem,Agressão Física
+2026-07-21 13:15:00,Ameaça,Imbiribeira,-8.1076,-34.9035,Nenhum,1,2,Não Informado,41,Arquivado,Delegacia Boa Viagem,Ameaça por Telefone
+2026-07-01 18:45:00,Violência Doméstica,Afogados,-8.0699,-34.9165,Faca,2,2,Masculino,42,Em Investigação,Delegacia Afogados,Agressão Física
+2026-07-04 13:45:00,Ameaça,Santo Amaro,-8.0744,-34.8904,Arma de Fogo,1,1,Masculino,60,Em Investigação,Delegacia Santo Amaro,Ameaça Verbal
+2026-08-13 13:45:00,Violência Doméstica,Graças,-8.0539,-34.8995,Faca,1,2,Feminino,48,Concluído,Delegacia Torre,Agressão Física
+2026-08-24 07:15:00,Violência Doméstica,Torre,-8.0511,-34.9128,Arma de Fogo,2,2,Masculino,58,Arquivado,Delegacia Torre,Agressão Física
+2026-08-22 19:15:00,Estupro,Espinheiro,-8.0536,-34.9,Nenhum,1,2,Masculino,46,Em Investigação,Delegacia Torre,Violência Sexual

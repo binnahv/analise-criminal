@@ -85,3 +85,60 @@ def test_alvo_do_modelo_nao_depende_so_das_features():
     df["grave"] = df["tipo_crime"].isin(AdvancedCriminalAnalysis.CRIMES_GRAVES)
     por_bairro = df.groupby("bairro")["grave"].nunique()
     assert (por_bairro == 2).all()
+
+def test_indice_gravidade_usa_os_valores_reais_do_dataset():
+    """Todo crime e toda arma do dataset precisam ter peso definido
+    (antes os nomes não batiam e as abas usavam dados aleatórios)."""
+    from dashboard_tabs import PESOS_ARMA, PESOS_CRIME, calcular_indice_gravidade
+    df = pd.read_csv(DATA)
+    assert set(df["tipo_crime"].unique()) <= set(PESOS_CRIME)
+    assert set(df["arma_utilizada"].unique()) <= set(PESOS_ARMA)
+    indice = calcular_indice_gravidade(df)
+    assert indice.notna().all() and (indice > 0).all()
+
+
+def test_indice_gravidade_calculo():
+    from dashboard_tabs import calcular_indice_gravidade
+    df = pd.DataFrame({"tipo_crime": ["Homicídio"], "arma_utilizada": ["Faca"],
+                       "quantidade_vitimas": [2], "quantidade_suspeitos": [1]})
+    assert calcular_indice_gravidade(df).iloc[0] == 10 + 3 + 2 * 2 + 1
+
+
+def test_upload_converte_data_mesmo_com_pandas_3():
+    """No pandas 3 colunas de texto têm dtype `str`, não `object`. A data do
+    CSV enviado precisa ser convertida mesmo assim (antes dava erro no `.dt`)."""
+    from violencia_domestica import preparar_dataset_upload
+    df = pd.DataFrame({"data_ocorrencia": ["2026-01-12", "data-invalida"],
+                       "tipo_crime": ["Ameaça", "Estupro"], "bairro": ["Pina", "Torre"],
+                       "latitude": ["-8.08", "-8.05"], "longitude": ["-34.88", "-34.90"],
+                       "status_atendimento": ["Em análise", "Encerrada"],
+                       "idade_suspeito": ["Não informado", "30"]})
+    out = preparar_dataset_upload(df)
+    assert len(out) == 1  # a linha com data inválida é descartada
+    assert pd.api.types.is_datetime64_any_dtype(out["data_ocorrencia"])
+    assert out["mes"].iloc[0] == 1 and out["status_caso"].iloc[0] == "Em análise"
+    # texto em coluna numérica vira vazio em vez de quebrar os gráficos
+    assert pd.api.types.is_numeric_dtype(out["idade_suspeito"])
+    assert out["idade_suspeito"].isna().iloc[0]
+
+
+def test_csv_modelo_de_upload_segue_o_formato_documentado():
+    from violencia_domestica import (COLUNAS_OBRIGATORIAS, COLUNAS_OPCIONAIS,
+                                               MODELO_UPLOAD, preparar_dataset_upload)
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    df = pd.read_csv(os.path.join(raiz, MODELO_UPLOAD))
+    esperadas = {c for c, _ in COLUNAS_OBRIGATORIAS + COLUNAS_OPCIONAIS}
+    assert set(df.columns) == esperadas
+    preparado = preparar_dataset_upload(df)
+    assert len(preparado) == len(df)  # todas as datas do modelo são válidas
+    from violencia_domestica import clean_geographic_data
+    assert len(clean_geographic_data(preparado)) == len(df)  # todos aparecem no mapa
+
+
+def test_mapa_aceita_bairros_novos_dentro_do_recife():
+    # bairro fora da lista original, mas dentro do Recife
+    assert DataValidator.validate_coordinates_flexible(-8.0258, -34.9150, "Casa Amarela")
+    # bairro da lista original continua sendo conferido pelo centro do bairro
+    assert not DataValidator.validate_coordinates_flexible(-8.0258, -34.9150, "Boa Viagem")
+    # fora do Recife (Olinda) continua sendo descartado
+    assert not DataValidator.validate_coordinates_flexible(-7.90, -34.84, "Bairro Novo")

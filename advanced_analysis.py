@@ -1,18 +1,17 @@
 """
 Análise Criminal Avançada com Modelos Melhorados
-Implementa K-Prototypes, HDBSCAN, XGBoost e tratamento robusto de dados
+Limpeza e validação dos dados, clustering (K-Means), detecção de anomalias
+(Isolation Forest) e classificador de ocorrência grave (XGBoost) com baseline
 """
 
+from typing import Optional
+
 import pandas as pd
-import numpy as np
-import pickle
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import silhouette_score, classification_report
-# import hdbscan  # Removido devido a problemas de compilação no Windows
-# from kmodes.kprototypes import KPrototypes  # Removido devido a problemas de compilação
 import xgboost as xgb
 import lightgbm as lgb
 from security_utils import SecurityManager, LGPDCompliance, DataValidator
@@ -22,7 +21,7 @@ warnings.filterwarnings('ignore')
 class AdvancedCriminalAnalysis:
     """Classe principal para análise criminal avançada"""
     
-    def __init__(self, data_path):
+    def __init__(self, data_path: str) -> None:
         self.data_path = data_path
         self.security_manager = SecurityManager()
         self.lgpd = LGPDCompliance()
@@ -30,7 +29,7 @@ class AdvancedCriminalAnalysis:
         self.scaler = StandardScaler()
         self.label_encoders = {}
         
-    def load_and_preprocess_data(self):
+    def load_and_preprocess_data(self) -> pd.DataFrame:
         """Carrega e preprocessa os dados com validação robusta"""
         print("Carregando e preprocessando dados...")
         
@@ -83,7 +82,7 @@ class AdvancedCriminalAnalysis:
         print("Pré-processamento concluído.")
         return df_clean
     
-    def _categorize_time_period(self, hour):
+    def _categorize_time_period(self, hour: int) -> str:
         """Categoriza período do dia"""
         if 6 <= hour < 12:
             return 'Manhã'
@@ -94,7 +93,7 @@ class AdvancedCriminalAnalysis:
         else:
             return 'Madrugada'
     
-    def perform_clustering(self, method='kmeans'):
+    def perform_clustering(self, method: str = 'kmeans') -> float:
         """Realiza clusterização com diferentes métodos"""
         print(f"Executando clusterização com {method}...")
         
@@ -141,7 +140,7 @@ class AdvancedCriminalAnalysis:
                 sil_score = silhouette_score(X_agg_scaled, clusters) if len(set(clusters)) > 1 else 0
             else:  # kmeans
                 sil_score = silhouette_score(df_encoded_scaled, clusters)
-        except:
+        except ValueError:
             sil_score = 0
         
         print(f"Silhouette Score ({method}): {sil_score:.3f}")
@@ -152,7 +151,7 @@ class AdvancedCriminalAnalysis:
         
         return sil_score
     
-    def detect_anomalies(self, method='isolation_forest'):
+    def detect_anomalies(self, method: str = 'isolation_forest') -> None:
         """Detecta anomalias com diferentes métodos"""
         print(f"Detectando anomalias com {method}...")
         
@@ -180,7 +179,7 @@ class AdvancedCriminalAnalysis:
     # de bairro/hora/dia, portanto não há vazamento de informação (target leakage).
     CRIMES_GRAVES = ['Homicídio', 'Latrocínio', 'Estupro', 'Sequestro']
 
-    def train_risk_prediction_model(self, model_type='xgboost'):
+    def train_risk_prediction_model(self, model_type: str = 'xgboost') -> tuple[dict, float]:
         """Treina modelo que estima a probabilidade de uma ocorrência ser GRAVE
         a partir de onde (bairro) e quando (hora, dia, mês) ela acontece.
 
@@ -202,7 +201,7 @@ class AdvancedCriminalAnalysis:
         bairro_counts = self.df['bairro'].value_counts()
         q33, q66 = bairro_counts.quantile(0.33), bairro_counts.quantile(0.66)
 
-        def classify_density(bairro):
+        def classify_density(bairro: str) -> str:
             count = bairro_counts.get(bairro, 0)
             if count <= q33:
                 return 'Baixo Risco'
@@ -284,10 +283,9 @@ class AdvancedCriminalAnalysis:
         self.security_manager.save_encrypted_model(model_data, 'risk_model_secure.pkl')
         return class_report, cv_acc.mean()
 
-    def get_feature_importance(self, model_data):
+    def get_feature_importance(self, model_data: dict) -> Optional[pd.DataFrame]:
         """Obtém importância das features do modelo"""
         model = model_data['model']
-        model_type = model_data.get('model_type', 'random_forest')
         
         if hasattr(model, 'feature_importances_'):
             importance = model.feature_importances_
@@ -302,7 +300,7 @@ class AdvancedCriminalAnalysis:
         
         return None
     
-    def save_results(self):
+    def save_results(self) -> None:
         """Salva resultados da análise"""
         results = {
             'data': self.df,
@@ -317,7 +315,7 @@ class AdvancedCriminalAnalysis:
         
         print("Resultados salvos com segurança.")
 
-def main():
+def main() -> None:
     """Função principal"""
     print("=== Análise Criminal Avançada ===")
     
@@ -340,7 +338,7 @@ def main():
     # Salvar resultados
     analysis.save_results()
     
-    print(f"\n=== Resumo da Análise ===")
+    print("\n=== Resumo da Análise ===")
     print(f"Total de registros processados: {len(df)}")
     print(f"Silhouette Score: {sil_score:.3f}")
     m = analysis.model_metrics

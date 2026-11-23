@@ -1,15 +1,10 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import folium
 from streamlit_folium import st_folium
 from map_utils import new_folium_map
-from folium.plugins import HeatMap, MarkerCluster
+from folium.plugins import HeatMap
 import pydeck as pdk
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 from security_utils import SecurityManager, LGPDCompliance, DataValidator, show_model_limitations
 from dashboard_tabs import (
@@ -353,8 +348,14 @@ def show_geographic_analysis(df, filters):
     if len(df) == 0:
         st.warning("Nenhum dado disponível para visualização geográfica.")
         return
-    
-    
+
+    st.caption(
+        "ℹ️ **Por que o mapa mostra poucos pontos?** O dataset da disciplina foi preparado com "
+        "erros propositais para o exercício de limpeza: só cerca de 6% das coordenadas ficam "
+        "dentro do bairro informado na ocorrência. O mapa exibe apenas os pontos coerentes com "
+        "o bairro; os demais são descartados de propósito, não por falha do sistema."
+    )
+
     # Informações dos dados filtrados
     if 'bairro' in df.columns:
         bairros_unicos = df['bairro'].unique()

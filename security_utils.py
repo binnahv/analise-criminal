@@ -12,6 +12,7 @@ from cryptography.fernet import Fernet
 from datetime import datetime, timedelta
 import pandas as pd
 import logging
+from typing import Any, Optional
 
 # Configuração de logging para auditoria
 logging.basicConfig(
@@ -23,26 +24,26 @@ logging.basicConfig(
 class SecurityManager:
     """Gerenciador de segurança para o sistema de análise criminal"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.key_file = 'security.key'
         self.users_file = 'users.pkl'
         self.session_timeout = 30  # minutos
         
-    def generate_key(self):
+    def generate_key(self) -> bytes:
         """Gera uma nova chave de criptografia"""
         key = Fernet.generate_key()
         with open(self.key_file, 'wb') as f:
             f.write(key)
         return key
     
-    def load_key(self):
+    def load_key(self) -> bytes:
         """Carrega a chave de criptografia"""
         if not os.path.exists(self.key_file):
             return self.generate_key()
         with open(self.key_file, 'rb') as f:
             return f.read()
     
-    def encrypt_data(self, data):
+    def encrypt_data(self, data: Any) -> bytes:
         """Criptografa dados usando Fernet"""
         key = self.load_key()
         f = Fernet(key)
@@ -50,21 +51,21 @@ class SecurityManager:
         encrypted_data = f.encrypt(serialized_data)
         return encrypted_data
     
-    def decrypt_data(self, encrypted_data):
+    def decrypt_data(self, encrypted_data: bytes) -> Any:
         """Descriptografa dados usando Fernet"""
         key = self.load_key()
         f = Fernet(key)
         decrypted_data = f.decrypt(encrypted_data)
         return pickle.loads(decrypted_data)
     
-    def save_encrypted_model(self, model_data, filename):
+    def save_encrypted_model(self, model_data: Any, filename: str) -> None:
         """Salva modelo criptografado"""
         encrypted_data = self.encrypt_data(model_data)
         with open(filename, 'wb') as f:
             f.write(encrypted_data)
         logging.info(f"Modelo salvo criptografado: {filename}")
     
-    def load_encrypted_model(self, filename):
+    def load_encrypted_model(self, filename: str) -> Any:
         """Carrega modelo criptografado"""
         with open(filename, 'rb') as f:
             encrypted_data = f.read()
@@ -72,11 +73,11 @@ class SecurityManager:
         logging.info(f"Modelo carregado: {filename}")
         return model_data
     
-    def hash_password(self, password):
+    def hash_password(self, password: str) -> str:
         """Gera hash da senha"""
         return hashlib.sha256(password.encode()).hexdigest()
     
-    def _load_users(self):
+    def _load_users(self) -> dict:
         """Carrega os usuários; cria o admin de demonstração se o arquivo não existir.
 
         A senha do admin NUNCA fica escrita no código:
@@ -105,15 +106,16 @@ class SecurityManager:
         with open(self.users_file, 'rb') as f:
             return pickle.load(f)
 
-    def _save_users(self, users):
+    def _save_users(self, users: dict) -> None:
         with open(self.users_file, 'wb') as f:
             pickle.dump(users, f)
 
-    def ensure_default_user(self):
+    def ensure_default_user(self) -> bool:
         """Garante que exista o usuário de demonstração (admin). Retorna True se ok."""
         return 'admin' in self._load_users()
 
-    def create_user(self, username, password, role='analyst', permissions=None):
+    def create_user(self, username: str, password: str, role: str = 'analyst',
+                    permissions: Optional[list[str]] = None) -> bool:
         """Cria um usuário. Retorna True se criou e False se o usuário já existia
         ou se os dados forem inválidos."""
         if not username or not password:
@@ -130,7 +132,7 @@ class SecurityManager:
         logging.info(f"Usuário criado: {username}")
         return True
 
-    def authenticate_user(self, username, password):
+    def authenticate_user(self, username: str, password: str) -> tuple[bool, Optional[dict]]:
         """Autentica usuário"""
         users = self._load_users()
         
@@ -142,7 +144,7 @@ class SecurityManager:
         logging.warning(f"Tentativa de login falhada: {username}")
         return False, None
     
-    def check_session_timeout(self):
+    def check_session_timeout(self) -> bool:
         """Verifica timeout da sessão"""
         if 'login_time' in st.session_state:
             login_time = st.session_state['login_time']
@@ -155,7 +157,7 @@ class LGPDCompliance:
     """Classe para conformidade com LGPD"""
     
     @staticmethod
-    def anonymize_data(df, sensitive_columns):
+    def anonymize_data(df: pd.DataFrame, sensitive_columns: list[str]) -> pd.DataFrame:
         """Anonimiza dados sensíveis"""
         df_anon = df.copy()
         for col in sensitive_columns:
@@ -167,7 +169,7 @@ class LGPDCompliance:
         return df_anon
     
     @staticmethod
-    def get_data_retention_policy():
+    def get_data_retention_policy() -> dict[str, str]:
         """Retorna política de retenção de dados"""
         return {
             'retention_period': '5 anos',
@@ -176,7 +178,7 @@ class LGPDCompliance:
         }
     
     @staticmethod
-    def log_data_access(user, data_type, action):
+    def log_data_access(user: str, data_type: str, action: str) -> None:
         """Registra acesso aos dados para auditoria"""
         logging.info(f"LGPD - Usuário: {user}, Dados: {data_type}, Ação: {action}")
 
@@ -184,7 +186,7 @@ class DataValidator:
     """Validador de dados para garantir qualidade e consistência"""
     
     @staticmethod
-    def validate_coordinates(lat, lon):
+    def validate_coordinates(lat: float, lon: float) -> bool:
         """Valida coordenadas geográficas para Recife com limites mais restritivos"""
         if pd.isna(lat) or pd.isna(lon):
             return False
@@ -200,40 +202,57 @@ class DataValidator:
         
         return False
     
+    # Coordenadas aproximadas dos bairros do dataset original (centro e raio em graus)
+    BAIRRO_COORDS = {
+        'Pina': {'lat_center': -8.088, 'lon_center': -34.885, 'radius': 0.015},
+        'Boa Viagem': {'lat_center': -8.113, 'lon_center': -34.896, 'radius': 0.020},
+        'Imbiribeira': {'lat_center': -8.118, 'lon_center': -34.906, 'radius': 0.015},
+        'Casa Forte': {'lat_center': -8.038, 'lon_center': -34.925, 'radius': 0.015},
+        'Graças': {'lat_center': -8.058, 'lon_center': -34.898, 'radius': 0.012},
+        'Espinheiro': {'lat_center': -8.048, 'lon_center': -34.898, 'radius': 0.012},
+        'Tamarineira': {'lat_center': -8.028, 'lon_center': -34.908, 'radius': 0.015},
+        'Torre': {'lat_center': -8.048, 'lon_center': -34.908, 'radius': 0.012},
+        'Afogados': {'lat_center': -8.068, 'lon_center': -34.918, 'radius': 0.015},
+        'Santo Amaro': {'lat_center': -8.078, 'lon_center': -34.888, 'radius': 0.012}
+    }
+
+    # Retângulo aproximado que cobre todo o município do Recife
+    RECIFE_BOUNDS = {'lat_min': -8.16, 'lat_max': -7.93, 'lon_min': -35.02, 'lon_max': -34.85}
+
     @staticmethod
-    def validate_coordinates_by_neighborhood(lat, lon, bairro):
+    def validate_coordinates_by_neighborhood(lat: float, lon: float, bairro: str) -> bool:
         """Valida coordenadas baseado no bairro específico"""
         if pd.isna(lat) or pd.isna(lon):
             return False
-            
-        # Coordenadas aproximadas dos principais bairros do Recife
-        bairro_coords = {
-            'Pina': {'lat_center': -8.088, 'lon_center': -34.885, 'radius': 0.015},
-            'Boa Viagem': {'lat_center': -8.113, 'lon_center': -34.896, 'radius': 0.020},
-            'Imbiribeira': {'lat_center': -8.118, 'lon_center': -34.906, 'radius': 0.015},
-            'Casa Forte': {'lat_center': -8.038, 'lon_center': -34.925, 'radius': 0.015},
-            'Graças': {'lat_center': -8.058, 'lon_center': -34.898, 'radius': 0.012},
-            'Espinheiro': {'lat_center': -8.048, 'lon_center': -34.898, 'radius': 0.012},
-            'Tamarineira': {'lat_center': -8.028, 'lon_center': -34.908, 'radius': 0.015},
-            'Torre': {'lat_center': -8.048, 'lon_center': -34.908, 'radius': 0.012},
-            'Afogados': {'lat_center': -8.068, 'lon_center': -34.918, 'radius': 0.015},
-            'Santo Amaro': {'lat_center': -8.078, 'lon_center': -34.888, 'radius': 0.012}
-        }
-        
-        if bairro in bairro_coords:
-            coords = bairro_coords[bairro]
-            # Calcular distância aproximada
+
+        coords = DataValidator.BAIRRO_COORDS.get(bairro)
+        if coords:
             lat_diff = abs(lat - coords['lat_center'])
             lon_diff = abs(lon - coords['lon_center'])
-            
             # Verificar se está dentro do raio do bairro
             if lat_diff <= coords['radius'] and lon_diff <= coords['radius']:
                 return True
-        
+
         return False
-    
+
     @staticmethod
-    def validate_datetime(dt):
+    def validate_coordinates_recife(lat: float, lon: float) -> bool:
+        """Valida se a coordenada está dentro dos limites do município do Recife"""
+        if pd.isna(lat) or pd.isna(lon):
+            return False
+        b = DataValidator.RECIFE_BOUNDS
+        return bool(b['lat_min'] <= lat <= b['lat_max'] and b['lon_min'] <= lon <= b['lon_max'])
+
+    @staticmethod
+    def validate_coordinates_flexible(lat: float, lon: float, bairro: str) -> bool:
+        """Bairro conhecido: confere se o ponto está perto do centro do bairro.
+        Bairro desconhecido: aceita qualquer ponto dentro do Recife."""
+        if bairro in DataValidator.BAIRRO_COORDS:
+            return DataValidator.validate_coordinates_by_neighborhood(lat, lon, bairro)
+        return DataValidator.validate_coordinates_recife(lat, lon)
+
+    @staticmethod
+    def validate_datetime(dt: datetime) -> bool:
         """Valida data e hora"""
         if pd.isna(dt):
             return False
@@ -246,7 +265,7 @@ class DataValidator:
         return True
     
     @staticmethod
-    def clean_and_validate_data(df):
+    def clean_and_validate_data(df: pd.DataFrame) -> pd.DataFrame:
         """Limpa e valida dataset completo"""
         df_clean = df.copy()
         

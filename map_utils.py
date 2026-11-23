@@ -10,6 +10,7 @@ Para trocar de provedor sem mexer no código, defina variáveis de ambiente:
     MAP_TILE_ATTR (texto de atribuição exigido pelo provedor)
 """
 import os
+from typing import Any
 
 import folium
 
@@ -18,7 +19,7 @@ _ATTR = "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
 _NATIVE_ZOOM = 16  # o Esri Canvas não tem tiles acima do zoom 16
 
 
-def tile_config(dark=False):
+def tile_config(dark: bool = False) -> tuple[str, str]:
     """Retorna (url, atribuição) do mapa base."""
     url = os.getenv("MAP_TILE_URL")
     if url:
@@ -27,7 +28,8 @@ def tile_config(dark=False):
     return _ESRI.format(name=name), _ATTR
 
 
-def new_folium_map(location, zoom_start=12, dark=False, **kwargs):
+def new_folium_map(location: list[float], zoom_start: int = 12, dark: bool = False,
+                   **kwargs: Any) -> folium.Map:
     """Cria um folium.Map com mapa base gratuito e sem chave."""
     url, attr = tile_config(dark)
     m = folium.Map(location=location, zoom_start=zoom_start, tiles=None,
@@ -37,7 +39,7 @@ def new_folium_map(location, zoom_start=12, dark=False, **kwargs):
     return m
 
 
-def apply_plotly_basemap(fig, dark=False):
+def apply_plotly_basemap(fig: Any, dark: bool = False) -> Any:
     """Aplica o mesmo mapa base a uma figura do px.scatter_map (Plotly)."""
     url, attr = tile_config(dark)
     fig.update_layout(
