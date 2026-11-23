@@ -2,9 +2,9 @@
 
 > Projeto acadêmico (PI) — dashboard interativo em Streamlit para análise exploratória de ocorrências criminais, com validação de dados, clustering, detecção de anomalias e um modelo de classificação.
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
-[![Testes](https://github.com/<seu-usuario>/<nome-do-repositorio>/actions/workflows/tests.yml/badge.svg)](https://github.com/<seu-usuario>/<nome-do-repositorio>/actions)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.50+-red.svg)](https://streamlit.io)
+[![Testes](https://github.com/binnahv/analise-criminal/actions/workflows/tests.yml/badge.svg)](https://github.com/binnahv/analise-criminal/actions)
 
 ## 🎯 Sobre o projeto
 
@@ -16,7 +16,7 @@ Trabalho desenvolvido na faculdade (curso de Análise e Desenvolvimento de Siste
 
 O arquivo `data/dataset_ocorrencias_delegacia_5.csv` tem **5.000 ocorrências** (2022–2025) em **10 bairros do Recife**, com 14 colunas (tipo de crime, modus operandi, arma, vítimas, suspeitos, delegacia, status da investigação, coordenadas etc.).
 
-O dataset contém **inconsistências propositais ou naturais de dados sintéticos**, e parte do trabalho foi identificá-las e tratá-las:
+O professor preparou o dataset **com erros propositais**: um dos objetivos da disciplina era justamente perceber essas inconsistências e decidir como tratá-las. O que foi encontrado:
 
 | Inconsistência encontrada | O que o projeto faz |
 |---|---|
@@ -26,7 +26,7 @@ O dataset contém **inconsistências propositais ou naturais de dados sintético
 | Ocorrências com 0 vítimas (inclusive homicídios) e com 0 suspeitos mas sexo do suspeito preenchido | Identificado como limitação dos dados |
 | Delegacia responsável sem relação com o bairro da ocorrência | Identificado como limitação dos dados |
 
-> 🔎 Como os dados parecem gerados aleatoriamente, **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
+> 🔎 Além dos erros, os dados são sintéticos e aleatórios, então **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
 
 ## Mapa de Calor
 ![Mapa de calor](docs/mapa.png)
@@ -60,7 +60,8 @@ O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latroc�
 - **Histórico do modelo:** uma versão anterior previa "nível de risco" calculado pela contagem de ocorrências por bairro e usava o bairro como variável de entrada, o que gerava ~100% de acurácia por **vazamento de alvo (*target leakage*)**. O alvo foi redefinido para algo que não depende das features, e o modelo passou a ser comparado com um baseline.
 - A classificação "Baixo/Médio/Alto Risco" exibida em alguns gráficos é apenas **descritiva** (densidade de ocorrências por bairro) e não é prevista pelo modelo.
 - **Segurança é apenas didática:** o login `admin` é de demonstração e sua senha é gerada aleatoriamente na primeira execução (nada de senha fixa no código); as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
-- Os testes cobrem login, criptografia, validação de dados e o alvo do modelo; não há testes automatizados de interface.
+- O dataset não tem dados da **vítima** (sexo, idade). Por isso os dashboards só mostram o perfil do **suspeito**.
+- Os testes cobrem login, criptografia, validação de dados, o alvo do modelo e o índice de gravidade; não há testes automatizados de interface.
 
 ## 🛠️ Stack
 
@@ -70,8 +71,8 @@ Python · Streamlit · Pandas · NumPy · scikit-learn · XGBoost · LightGBM ·
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/<seu-usuario>/<nome-do-repositorio>.git
-cd <nome-do-repositorio>
+git clone https://github.com/binnahv/analise-criminal.git
+cd analise-criminal
 
 # 2. (Recomendado) criar ambiente virtual
 python -m venv .venv
@@ -118,12 +119,39 @@ streamlit run enhanced_app.py
 
 > A senha só é definida quando o arquivo `users.pkl` é criado. Para trocá-la depois, apague o `users.pkl` e inicie o app de novo.
 
+### Carregar outro dataset no dashboard de Violência Doméstica
+
+O dashboard aceita um CSV próprio pela barra lateral (**Upload de Dataset**). Use o arquivo [`data/modelo_upload_violencia_domestica.csv`](data/modelo_upload_violencia_domestica.csv) como modelo; ele também pode ser baixado pelo próprio app, em **Formato do CSV**.
+
+| Coluna | Obrigatória? | Formato |
+|---|---|---|
+| `data_ocorrencia` | Sim | `AAAA-MM-DD HH:MM:SS` (sem hora, todos os casos caem em 0h) |
+| `tipo_crime` | Sim | Ex.: Violência Doméstica, Ameaça, Estupro |
+| `bairro` | Sim | Nome do bairro |
+| `latitude` / `longitude` | Sim | Decimal com ponto (ex.: `-8.112`, `-34.897`) |
+| `arma_utilizada` | Não | Nenhum, Faca, Arma de Fogo, Objeto Contundente, Explosivos |
+| `quantidade_vitimas` / `quantidade_suspeitos` | Não | Número inteiro |
+| `sexo_suspeito` | Não | Masculino, Feminino ou Não Informado |
+| `idade_suspeito` | Não | Número inteiro |
+| `status_investigacao` (ou `status_atendimento`) | Não | Ex.: Em Investigação, Concluído, Arquivado |
+| `orgao_responsavel` | Não | Delegacia/órgão responsável |
+| `descricao_modus_operandi` | Não | Texto curto |
+
+Sem as colunas opcionais o app funciona, mas as abas que dependem delas ficam limitadas. No mapa, pontos dos 10 bairros do dataset original precisam estar perto do centro do bairro informado; pontos de outros bairros são aceitos se estiverem dentro do Recife (latitude -8,16 a -7,93; longitude -35,02 a -34,85). Pontos fora disso não aparecem no mapa.
+
 ## 📁 Estrutura
 
 ```
 ├── enhanced_app.py                      # Dashboard principal (login + 10 abas)
-├── dashboard_tabs.py                    # Funções de cada aba
-├── dashboard_violencia_domestica.py     # Dashboard de Violência Doméstica
+├── dashboard_tabs/                      # Abas do dashboard principal
+│   ├── mapa.py · padroes.py · previsao.py
+│   └── investigacao.py · estatisticas.py
+├── dashboard_violencia_domestica.py     # Dashboard de Violência Doméstica (página e main)
+├── violencia_domestica/                 # Lógica do dashboard de VD
+│   ├── dados.py                         # Carga, validação, filtros e formato do upload
+│   ├── graficos.py                      # Abas descritivas (mapa, temporal, perfil...)
+│   ├── modelos.py                       # Clustering, anomalias e modelo supervisionado
+│   └── relatorio.py                     # Relatório HTML
 ├── advanced_analysis.py                 # Limpeza, clustering, anomalias e ML
 ├── security_utils.py                    # Login, criptografia e validação de dados
 ├── map_utils.py                         # Mapa base gratuito e sem chave de API
@@ -133,11 +161,12 @@ streamlit run enhanced_app.py
 ├── tests/
 │   └── test_core.py                     # Testes automatizados
 ├── data/
-│   └── dataset_ocorrencias_delegacia_5.csv
+│   ├── dataset_ocorrencias_delegacia_5.csv
+│   └── modelo_upload_violencia_domestica.csv   # Modelo de CSV para upload
 ├── .github/workflows/tests.yml          # Testes automáticos (CI)
 └── LICENSE.md
 ```
 
 ## 📄 Licença
 
-Código distribuído sob a licença [MIT](LICENSE.md). O dataset em `data/` foi fornecido pelo professor e não é coberto por essa licença.
+Código distribuído sob a licença [MIT](LICENSE.md). O dataset `data/dataset_ocorrencias_delegacia_5.csv` foi fornecido pelo professor e não é coberto por essa licença; o arquivo modelo de upload é fictício e faz parte do projeto.

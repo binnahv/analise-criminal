@@ -11,9 +11,9 @@ from pathlib import Path
 def check_python_version():
     """Verifica se a versão do Python é compatível"""
     print("🐍 Verificando versão do Python...")
-    if sys.version_info < (3, 8):
+    if sys.version_info < (3, 9):
         print(f"❌ Python {sys.version_info.major}.{sys.version_info.minor} não suportado")
-        print("   Versão mínima requerida: Python 3.8+")
+        print("   Versão mínima requerida: Python 3.9+")
         return False
     print(f"✅ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} - OK")
     return True
