@@ -25,6 +25,8 @@ O professor preparou o dataset **com erros propositais**: um dos objetivos da di
 | Combinações incoerentes entre tipo de crime e modus operandi (ex.: furto com "Estupro Coletivo") | Identificado como limitação; não é possível corrigir sem a fonte |
 | Ocorrências com 0 vítimas (inclusive homicídios) e com 0 suspeitos mas sexo do suspeito preenchido | Identificado como limitação dos dados |
 | Delegacia responsável sem relação com o bairro da ocorrência | Identificado como limitação dos dados |
+| Todas as ocorrências registradas no mesmo horário (19h) | O app detecta isso, avisa na tela e troca a análise por hora pela análise por mês do ano |
+| Coordenadas sorteadas num retângulo, e não em endereços reais | O mapa mostra só os pontos coerentes com o bairro; uma chave permite ver todos e enxergar o padrão |
 
 > 🔎 Além dos erros, os dados são sintéticos e aleatórios, então **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
 
@@ -37,11 +39,12 @@ O professor preparou o dataset **com erros propositais**: um dos objetivos da di
 ## ✨ Funcionalidades
 
 - **Dashboard com 10 abas:** geográfica, temporal, clusters, anomalias, previsão, investigação, perfil de suspeitos, gravidade, modus operandi e estatísticas.
-- **Filtros globais:** período, bairros, tipos de crime, faixa horária e dias da semana.
-- **Mapas:** mapa de calor, clusters e pontos individuais (Folium / PyDeck), com mapa base gratuito (Esri) que não exige chave de API. É possível trocar o provedor pelas variáveis `MAP_TILE_URL` e `MAP_TILE_ATTR`.
+- **Filtros globais:** período, bairros, tipos de crime, faixa horária e dias da semana. Quando todas as ocorrências têm o mesmo horário (caso do dataset da disciplina), o filtro de horário é escondido e a análise por hora vira análise por mês do ano.
+- **Mapas:** mapa de calor, clusters e pontos individuais (Folium / PyDeck), com mapa base gratuito (Esri) que não exige chave de API. Por padrão o mapa mostra só as coordenadas coerentes com o bairro; uma chave permite incluir as inconsistentes. É possível trocar o provedor pelas variáveis `MAP_TILE_URL` e `MAP_TILE_ATTR`.
 - **Machine Learning (scikit-learn, XGBoost, LightGBM):** K-Means, Isolation Forest e um classificador de ocorrência grave avaliado contra um baseline (acurácia e ROC AUC).
 - **Módulo de segurança (demonstrativo):** login, criptografia Fernet dos arquivos gerados e log de auditoria.
-- **Dashboard extra** de Violência Doméstica (`dashboard_violencia_domestica.py`).
+- **Dashboard extra** de Violência Doméstica (`dashboard_violencia_domestica.py`), que aceita upload de CSV com formato documentado.
+- **Interface em português do Brasil:** números (3.482; 33,7%), datas (dd/mm/aaaa) e títulos dos gráficos no padrão brasileiro. A página se declara `pt-BR`, então a tradução automática do navegador funciona corretamente.
 
 ## 📈 Resultados
 
@@ -61,11 +64,11 @@ O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latroc�
 - A classificação "Baixo/Médio/Alto Risco" exibida em alguns gráficos é apenas **descritiva** (densidade de ocorrências por bairro) e não é prevista pelo modelo.
 - **Segurança é apenas didática:** o login `admin` é de demonstração e sua senha é gerada aleatoriamente na primeira execução (nada de senha fixa no código); as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
 - O dataset não tem dados da **vítima** (sexo, idade). Por isso os dashboards só mostram o perfil do **suspeito**.
-- Os testes cobrem login, criptografia, validação de dados, o alvo do modelo e o índice de gravidade; não há testes automatizados de interface.
+- Os 17 testes cobrem login, criptografia, validação de dados e coordenadas, o alvo do modelo, o índice de gravidade, o upload de CSV, a formatação brasileira e a detecção do horário constante; não há testes automatizados de interface.
 
 ## 🛠️ Stack
 
-Python · Streamlit · Pandas · NumPy · scikit-learn · XGBoost · LightGBM · Plotly · Folium · PyDeck · Matplotlib/Seaborn · cryptography
+Python · Streamlit · Pandas · NumPy · scikit-learn · XGBoost · LightGBM · Plotly · Folium · PyDeck · cryptography · pytest · GitHub Actions
 
 ## 🚀 Como executar
 
@@ -155,6 +158,7 @@ Sem as colunas opcionais o app funciona, mas as abas que dependem delas ficam li
 ├── advanced_analysis.py                 # Limpeza, clustering, anomalias e ML
 ├── security_utils.py                    # Login, criptografia e validação de dados
 ├── map_utils.py                         # Mapa base gratuito e sem chave de API
+├── ui.py                                # Formatação pt-BR, gráficos padronizados e tratamento do horário
 ├── setup.py                             # Configuração inicial (opcional)
 ├── requirements.txt
 ├── requirements-dev.txt                 # pytest (opcional)
