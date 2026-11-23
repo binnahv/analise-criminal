@@ -4,25 +4,28 @@ from datetime import datetime
 
 def generate_html_report(df):
     """Gera relatório HTML exportável com achados e métricas"""
-    
+
     # Calcular métricas principais
     total_casos = len(df)
     tipos_crime = df['tipo_crime'].value_counts()
     bairros_top = df['bairro'].value_counts().head(5)
-    
+
     # Calcular taxa de resolução
     casos_concluidos = len(df[df['status_caso'] == 'Concluído']) if 'status_caso' in df.columns else 0
     taxa_resolucao = (casos_concluidos / total_casos * 100) if total_casos > 0 else 0
-    
+
     # Análise temporal
     if 'hora' not in df.columns:
         df_temp = df.copy()
         df_temp['hora'] = df_temp['data_ocorrencia'].dt.hour
     else:
         df_temp = df
-    
+
     hora_pico = df_temp['hora'].mode().iloc[0] if len(df_temp) > 0 else 0
-    
+    hora_unica = df_temp['hora'].nunique() <= 1
+    texto_horario = (f"indisponível (todos os registros às {hora_pico}h)" if hora_unica
+                     else f"{hora_pico}:00h")
+
     # Template HTML
     html_content = f"""
     <!DOCTYPE html>
@@ -104,7 +107,7 @@ def generate_html_report(df):
                 <strong>Taxa de Resolução:</strong> {taxa_resolucao:.1f}%
             </div>
             <div class="metric">
-                <strong>Horário de Maior Incidência:</strong> {hora_pico}:00h
+                <strong>Horário de Maior Incidência:</strong> {texto_horario}
             </div>
         </div>
 
@@ -117,7 +120,7 @@ def generate_html_report(df):
                     <th>Percentual</th>
                 </tr>
     """
-    
+
     # Adicionar dados dos tipos de crime
     for tipo, casos in tipos_crime.items():
         percentual = (casos / total_casos * 100)
@@ -128,7 +131,7 @@ def generate_html_report(df):
                     <td>{percentual:.1f}%</td>
                 </tr>
         """
-    
+
     html_content += """
             </table>
         </div>
@@ -142,7 +145,7 @@ def generate_html_report(df):
                     <th>Percentual do Total</th>
                 </tr>
     """
-    
+
     # Adicionar dados dos bairros
     for bairro, casos in bairros_top.items():
         percentual = (casos / total_casos * 100)
@@ -153,27 +156,27 @@ def generate_html_report(df):
                     <td>{percentual:.1f}%</td>
                 </tr>
         """
-    
+
     # Gerar insights automáticos
     insights = []
-    
+
     # Insight sobre concentração
     if len(bairros_top) > 0:
         bairro_principal = bairros_top.index[0]
         concentracao = (bairros_top.iloc[0] / total_casos * 100)
         if concentracao > 20:
             insights.append(f"Alta concentração de casos em {bairro_principal} ({concentracao:.1f}% do total) - Requer atenção especial")
-    
+
     # Insight sobre taxa de resolução
     if taxa_resolucao < 70:
         insights.append(f"Taxa de resolução baixa ({taxa_resolucao:.1f}%) - Necessário revisar processos investigativos")
     elif taxa_resolucao > 85:
         insights.append(f"Excelente taxa de resolução ({taxa_resolucao:.1f}%) - Manter padrão de qualidade")
-    
+
     # Insight sobre horário
-    if 22 <= hora_pico <= 6:
+    if not hora_unica and (hora_pico >= 22 or hora_pico <= 6):
         insights.append(f"Pico de ocorrências no período noturno ({hora_pico}h) - Reforçar patrulhamento noturno")
-    
+
     html_content += """
             </table>
         </div>
@@ -181,10 +184,10 @@ def generate_html_report(df):
         <div class="section">
             <h2>💡 Insights e Recomendações</h2>
     """
-    
+
     for insight in insights:
         html_content += f'<div class="insight">• {insight}</div>'
-    
+
     # Adicionar limitações
     html_content += f"""
         </div>
@@ -192,15 +195,15 @@ def generate_html_report(df):
         <div class="section">
             <h2>⚠️ Limitações do Estudo</h2>
             <div class="warning">
-                <strong>Qualidade dos Dados:</strong> Este relatório é baseado em {total_casos} casos válidos após limpeza geográfica. 
+                <strong>Qualidade dos Dados:</strong> Este relatório é baseado em {total_casos} casos válidos após limpeza geográfica.
                 Coordenadas inválidas foram removidas para garantir precisão das análises espaciais.
             </div>
             <div class="warning">
-                <strong>Período de Análise:</strong> Os dados refletem o período disponível no dataset e podem não representar 
+                <strong>Período de Análise:</strong> Os dados refletem o período disponível no dataset e podem não representar
                 tendências de longo prazo.
             </div>
             <div class="warning">
-                <strong>Interpretação:</strong> As análises são baseadas em dados históricos e devem ser complementadas 
+                <strong>Interpretação:</strong> As análises são baseadas em dados históricos e devem ser complementadas
                 com conhecimento operacional local.
             </div>
         </div>
@@ -226,5 +229,5 @@ def generate_html_report(df):
     </body>
     </html>
     """
-    
+
     return html_content

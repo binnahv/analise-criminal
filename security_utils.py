@@ -23,26 +23,26 @@ logging.basicConfig(
 
 class SecurityManager:
     """Gerenciador de segurança para o sistema de análise criminal"""
-    
+
     def __init__(self) -> None:
         self.key_file = 'security.key'
         self.users_file = 'users.pkl'
         self.session_timeout = 30  # minutos
-        
+
     def generate_key(self) -> bytes:
         """Gera uma nova chave de criptografia"""
         key = Fernet.generate_key()
         with open(self.key_file, 'wb') as f:
             f.write(key)
         return key
-    
+
     def load_key(self) -> bytes:
         """Carrega a chave de criptografia"""
         if not os.path.exists(self.key_file):
             return self.generate_key()
         with open(self.key_file, 'rb') as f:
             return f.read()
-    
+
     def encrypt_data(self, data: Any) -> bytes:
         """Criptografa dados usando Fernet"""
         key = self.load_key()
@@ -50,21 +50,21 @@ class SecurityManager:
         serialized_data = pickle.dumps(data)
         encrypted_data = f.encrypt(serialized_data)
         return encrypted_data
-    
+
     def decrypt_data(self, encrypted_data: bytes) -> Any:
         """Descriptografa dados usando Fernet"""
         key = self.load_key()
         f = Fernet(key)
         decrypted_data = f.decrypt(encrypted_data)
         return pickle.loads(decrypted_data)
-    
+
     def save_encrypted_model(self, model_data: Any, filename: str) -> None:
         """Salva modelo criptografado"""
         encrypted_data = self.encrypt_data(model_data)
         with open(filename, 'wb') as f:
             f.write(encrypted_data)
         logging.info(f"Modelo salvo criptografado: {filename}")
-    
+
     def load_encrypted_model(self, filename: str) -> Any:
         """Carrega modelo criptografado"""
         with open(filename, 'rb') as f:
@@ -72,11 +72,11 @@ class SecurityManager:
         model_data = self.decrypt_data(encrypted_data)
         logging.info(f"Modelo carregado: {filename}")
         return model_data
-    
+
     def hash_password(self, password: str) -> str:
         """Gera hash da senha"""
         return hashlib.sha256(password.encode()).hexdigest()
-    
+
     def _load_users(self) -> dict:
         """Carrega os usuários; cria o admin de demonstração se o arquivo não existir.
 
@@ -135,15 +135,15 @@ class SecurityManager:
     def authenticate_user(self, username: str, password: str) -> tuple[bool, Optional[dict]]:
         """Autentica usuário"""
         users = self._load_users()
-        
+
         if username in users:
             if users[username]['password'] == self.hash_password(password):
                 logging.info(f"Login bem-sucedido: {username}")
                 return True, users[username]
-        
+
         logging.warning(f"Tentativa de login falhada: {username}")
         return False, None
-    
+
     def check_session_timeout(self) -> bool:
         """Verifica timeout da sessão"""
         if 'login_time' in st.session_state:
@@ -155,7 +155,7 @@ class SecurityManager:
 
 class LGPDCompliance:
     """Classe para conformidade com LGPD"""
-    
+
     @staticmethod
     def anonymize_data(df: pd.DataFrame, sensitive_columns: list[str]) -> pd.DataFrame:
         """Anonimiza dados sensíveis"""
@@ -167,7 +167,7 @@ class LGPDCompliance:
                     lambda x: hashlib.md5(str(x).encode()).hexdigest()[:8] if pd.notna(x) else x
                 )
         return df_anon
-    
+
     @staticmethod
     def get_data_retention_policy() -> dict[str, str]:
         """Retorna política de retenção de dados"""
@@ -176,7 +176,7 @@ class LGPDCompliance:
             'description': 'Dados criminais são mantidos por 5 anos conforme legislação',
             'deletion_policy': 'Dados são automaticamente anonimizados após o período'
         }
-    
+
     @staticmethod
     def log_data_access(user: str, data_type: str, action: str) -> None:
         """Registra acesso aos dados para auditoria"""
@@ -184,24 +184,24 @@ class LGPDCompliance:
 
 class DataValidator:
     """Validador de dados para garantir qualidade e consistência"""
-    
+
     @staticmethod
     def validate_coordinates(lat: float, lon: float) -> bool:
         """Valida coordenadas geográficas para Recife com limites mais restritivos"""
         if pd.isna(lat) or pd.isna(lon):
             return False
-        
+
         # Coordenadas mais restritivas para o centro do Recife
         # Baseado na área urbana principal do Recife
         lat_min, lat_max = -8.12, -8.05  # Mais restritivo
         lon_min, lon_max = -34.95, -34.85  # Mais restritivo
-        
+
         # Verificar se está dentro dos limites mais restritivos
         if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
             return True
-        
+
         return False
-    
+
     # Coordenadas aproximadas dos bairros do dataset original (centro e raio em graus)
     BAIRRO_COORDS = {
         'Pina': {'lat_center': -8.088, 'lon_center': -34.885, 'radius': 0.015},
@@ -263,28 +263,28 @@ class DataValidator:
         if dt.year < 2000:
             return False
         return True
-    
+
     @staticmethod
     def clean_and_validate_data(df: pd.DataFrame) -> pd.DataFrame:
         """Limpa e valida dataset completo"""
         df_clean = df.copy()
-        
+
         # Validar coordenadas
         valid_coords = df_clean.apply(
-            lambda row: DataValidator.validate_coordinates(row.get('latitude'), row.get('longitude')), 
+            lambda row: DataValidator.validate_coordinates(row.get('latitude'), row.get('longitude')),
             axis=1
         )
         df_clean = df_clean[valid_coords]
-        
+
         # Validar datas
         if 'data_ocorrencia' in df_clean.columns:
             df_clean['data_ocorrencia'] = pd.to_datetime(df_clean['data_ocorrencia'], errors='coerce')
             valid_dates = df_clean['data_ocorrencia'].apply(DataValidator.validate_datetime)
             df_clean = df_clean[valid_dates]
-        
+
         # Remover duplicatas
         df_clean = df_clean.drop_duplicates()
-        
+
         return df_clean
 
 def show_lgpd_notice():
@@ -301,18 +301,13 @@ def show_lgpd_notice():
         com dados pessoais reais sem uma avaliação jurídica e de segurança.
         """)
 
-def show_model_limitations():
-    """Exibe limitações e avisos sobre o modelo"""
-    st.warning("""
-    ⚠️ **IMPORTANTE - Limitações do Sistema:**
-    
-    • **Uso Auxiliar:** Este sistema é uma ferramenta de apoio à decisão, não substitui o julgamento profissional
-
-    • **Dados Históricos:** Previsões baseadas em padrões passados podem não refletir situações futuras
-
-    • **Novos Padrões:** O modelo pode não detectar crimes com características inéditas
-
-    • **Validação Necessária:** Sempre cruzar com informações de campo e outras fontes
-    
-    • **Atualização Regular:** Modelo deve ser retreinado periodicamente com novos dados
-    """)
+def show_model_limitations() -> None:
+    """Exibe limitações e avisos sobre o modelo (recolhido para não ocupar a tela)"""
+    with st.expander("⚠️ Limitações do sistema (leia antes de usar)"):
+        st.markdown(
+            "- **Uso auxiliar:** ferramenta de apoio à decisão; não substitui o julgamento profissional.\n"
+            "- **Dados históricos:** previsões baseadas no passado podem não refletir o futuro.\n"
+            "- **Novos padrões:** o modelo pode não detectar crimes com características inéditas.\n"
+            "- **Validação necessária:** sempre cruzar com informações de campo e outras fontes.\n"
+            "- **Atualização regular:** o modelo deve ser retreinado periodicamente com novos dados."
+        )

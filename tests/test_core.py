@@ -142,3 +142,24 @@ def test_mapa_aceita_bairros_novos_dentro_do_recife():
     assert not DataValidator.validate_coordinates_flexible(-8.0258, -34.9150, "Boa Viagem")
     # fora do Recife (Olinda) continua sendo descartado
     assert not DataValidator.validate_coordinates_flexible(-7.90, -34.84, "Bairro Novo")
+
+
+def test_formatacao_brasileira_de_numeros():
+    from ui import formatar_numero
+    assert formatar_numero(3482) == "3.482"
+    assert formatar_numero(33.7) == "33,7"
+    assert formatar_numero(1234567.891, casas=2) == "1.234.567,89"
+    assert formatar_numero("33.7%") == "33,7%"
+    assert formatar_numero("3,482") == "3.482" and formatar_numero("+1,234") == "+1.234"
+    assert formatar_numero("Alto") == "Alto"
+    assert formatar_numero(formatar_numero(1468)) == "1.468"  # não formata duas vezes
+
+
+def test_dataset_tem_horario_constante_e_e_detectado():
+    """Erro proposital do dataset: todas as ocorrências às 19h."""
+    from ui import horario_constante
+    df = pd.read_csv(DATA, parse_dates=["data_ocorrencia"])
+    df["hora"] = df["data_ocorrencia"].dt.hour
+    assert horario_constante(df)
+    df.loc[df.index[0], "hora"] = 3
+    assert not horario_constante(df)

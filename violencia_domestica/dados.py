@@ -11,31 +11,31 @@ def clean_geographic_data(df: pd.DataFrame, show_info: bool = False) -> pd.DataF
     """Limpa dados geográficos removendo coordenadas inválidas"""
     if 'latitude' not in df.columns or 'longitude' not in df.columns:
         return df
-    
+
     # Aplicar validação geográfica
     if 'bairro' in df.columns:
         # Validação individual por bairro para cada linha
         valid_coords = df.apply(
             lambda row: DataValidator.validate_coordinates_flexible(
                 row['latitude'], row['longitude'], row['bairro']
-            ), 
+            ),
             axis=1
         )
-        
+
         removed_count = len(df) - valid_coords.sum()
         if removed_count > 0 and show_info:
             st.info(f"🧹 **Limpeza geográfica:** {removed_count} pontos com coordenadas inválidas foram removidos (longe do bairro informado ou fora do Recife)")
     else:
         # Sem bairro: aceita qualquer ponto dentro do Recife
         valid_coords = df.apply(
-            lambda row: DataValidator.validate_coordinates_recife(row['latitude'], row['longitude']), 
+            lambda row: DataValidator.validate_coordinates_recife(row['latitude'], row['longitude']),
             axis=1
         )
-        
+
         removed_count = len(df) - valid_coords.sum()
         if removed_count > 0 and show_info:
             st.info(f"🧹 **Limpeza geográfica:** {removed_count} pontos com coordenadas inválidas foram removidos")
-    
+
     return df[valid_coords].copy()
 
 
@@ -45,29 +45,29 @@ def load_violencia_domestica_data() -> pd.DataFrame:
     try:
         # Carregar dataset completo
         df = pd.read_csv('data/dataset_ocorrencias_delegacia_5.csv')
-        
+
         # Filtrar apenas casos específicos: Estupro, Ameaça e Violência Doméstica
         tipos_violencia_domestica = [
             'Violência Doméstica',
-            'Estupro', 
+            'Estupro',
             'Ameaça'
         ]
-        
+
         # Filtrar dados
         df_vd = df[df['tipo_crime'].isin(tipos_violencia_domestica)].copy()
-        
+
         # Verificar se encontrou dados
         if len(df_vd) == 0:
             st.error("❌ Nenhum caso de violência doméstica encontrado no dataset.")
             return pd.DataFrame()
-        
+
         # Processar dados
         df_vd['data_ocorrencia'] = pd.to_datetime(df_vd['data_ocorrencia'], errors='coerce')
         df_vd['hora'] = df_vd['data_ocorrencia'].dt.hour
         df_vd['dia_semana'] = df_vd['data_ocorrencia'].dt.day_name()
         df_vd['mes'] = df_vd['data_ocorrencia'].dt.month
         df_vd['ano'] = df_vd['data_ocorrencia'].dt.year
-        
+
         # Mapear dias da semana para português
         day_map = {
             'Monday': 'Segunda-feira', 'Tuesday': 'Terça-feira',
@@ -75,15 +75,15 @@ def load_violencia_domestica_data() -> pd.DataFrame:
             'Friday': 'Sexta-feira', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
         }
         df_vd['dia_semana'] = df_vd['dia_semana'].map(day_map)
-        
+
         # Observação: o dataset não tem dados da VÍTIMA (sexo ou idade).
         # Os filtros e tabelas usam apenas os campos do SUSPEITO, que existem nos dados.
 
         # Usar status real da investigação
         df_vd['status_caso'] = df_vd['status_investigacao']
-        
+
         return df_vd
-        
+
     except Exception as e:
         st.error(f"Erro ao carregar dados: {str(e)}")
         return pd.DataFrame()
@@ -92,61 +92,61 @@ def load_violencia_domestica_data() -> pd.DataFrame:
 def create_sidebar_filters(df: pd.DataFrame) -> dict:
     """Cria filtros específicos para violência doméstica"""
     st.sidebar.markdown("## Filtros - Violência Doméstica")
-    
+
     # Filtro por tipo de violência
     tipos_disponiveis = sorted(df['tipo_crime'].unique())
     tipos_selecionados = st.sidebar.multiselect(
-        "Tipos de Violência",
+        "Tipos de Violência", placeholder='Selecione...',
         options=tipos_disponiveis,
         default=[],
         help="Selecione os tipos de violência para análise"
     )
-    
+
     # Filtro por bairro
     bairros_disponiveis = sorted(df['bairro'].unique())
     bairros_selecionados = st.sidebar.multiselect(
-        "Bairros",
+        "Bairros", placeholder='Selecione...',
         options=bairros_disponiveis,
         default=[],
         help="Selecione os bairros para análise"
     )
-    
+
     # Filtro por sexo do suspeito (o dataset não informa o sexo da vítima)
     generos_selecionados = []
     if 'sexo_suspeito' in df.columns:
         generos_disponiveis = sorted(df['sexo_suspeito'].unique())
         generos_selecionados = st.sidebar.multiselect(
-            "Sexo do Suspeito",
+            "Sexo do Suspeito", placeholder='Selecione...',
             options=generos_disponiveis,
             default=[]
         )
-    
+
     # Filtro por status do caso (se disponível)
     status_selecionados = []
     if 'status_caso' in df.columns:
         status_disponiveis = sorted(df['status_caso'].unique())
         status_selecionados = st.sidebar.multiselect(
-            "Status do Caso",
+            "Status do Caso", placeholder='Selecione...',
             options=status_disponiveis,
             default=[]
         )
-    
+
     # Filtro por período - limitado ao range do dataset
     if not df['data_ocorrencia'].isna().all():
         min_date = df['data_ocorrencia'].min().date()
         max_date = df['data_ocorrencia'].max().date()
-        
+
         st.sidebar.markdown(f"**Período disponível:** {min_date.strftime('%d/%m/%Y')} a {max_date.strftime('%d/%m/%Y')}")
-        
+
         data_range = st.sidebar.date_input(
-            "Período",
+            "Período", format='DD/MM/YYYY',
             value=(min_date, max_date),
             min_value=min_date,
             max_value=max_date
         )
     else:
         data_range = None
-    
+
     return {
         'tipos': tipos_selecionados,
         'bairros': bairros_selecionados,
@@ -159,26 +159,26 @@ def create_sidebar_filters(df: pd.DataFrame) -> dict:
 def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     """Aplica filtros aos dados"""
     df_filtered = df.copy()
-    
+
     if filters['tipos']:
         df_filtered = df_filtered[df_filtered['tipo_crime'].isin(filters['tipos'])]
-    
+
     if filters['bairros']:
         df_filtered = df_filtered[df_filtered['bairro'].isin(filters['bairros'])]
-    
+
     if filters['generos'] and 'sexo_suspeito' in df_filtered.columns:
         df_filtered = df_filtered[df_filtered['sexo_suspeito'].isin(filters['generos'])]
-    
+
     if filters['status'] and 'status_caso' in df_filtered.columns:
         df_filtered = df_filtered[df_filtered['status_caso'].isin(filters['status'])]
-    
+
     if filters['data_range'] and len(filters['data_range']) == 2:
         start_date, end_date = filters['data_range']
         df_filtered = df_filtered[
             (df_filtered['data_ocorrencia'].dt.date >= start_date) &
             (df_filtered['data_ocorrencia'].dt.date <= end_date)
         ]
-    
+
     return df_filtered
 
 
