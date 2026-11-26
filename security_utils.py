@@ -312,19 +312,20 @@ class DataValidator:
 
         return df_clean
 
-def show_lgpd_notice():
-    """Exibe aviso (demonstrativo) sobre boas práticas de privacidade"""
+def show_lgpd_notice() -> None:
+    """Exibe na barra lateral um aviso (demonstrativo) sobre as práticas de privacidade do app."""
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔒 Privacidade (demonstração)")
-    with st.sidebar.expander("Política de Privacidade"):
-        st.write("""
-        **Projeto acadêmico com dados fictícios.**
-
-        Este painel demonstra boas práticas inspiradas na LGPD, como
-        anonimização de colunas sensíveis, log de acesso e controle de sessão.
-        Ele **não** representa conformidade legal completa e não deve ser usado
-        com dados pessoais reais sem uma avaliação jurídica e de segurança.
-        """)
+    with st.sidebar.expander("🔒 Privacidade (demonstração)"):
+        st.markdown(
+            "**Projeto acadêmico com dados fictícios.**\n\n"
+            "Práticas de segurança aplicadas neste app, inspiradas na LGPD:\n"
+            "- senhas guardadas só como hash (PBKDF2 com sal);\n"
+            "- resultados da análise salvos criptografados;\n"
+            "- registro de tentativas de login (log de auditoria);\n"
+            "- sessão encerrada após 30 minutos.\n\n"
+            "Isso **não** representa conformidade legal com a LGPD, e o app não deve ser usado "
+            "com dados pessoais reais sem uma avaliação jurídica e de segurança."
+        )
 
 def show_model_limitations() -> None:
     """Exibe limitações e avisos sobre o modelo (recolhido para não ocupar a tela)"""

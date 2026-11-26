@@ -16,7 +16,8 @@ from streamlit_folium import st_folium
 
 from advanced_analysis import run_full_analysis
 from map_utils import new_folium_map
-from security_utils import DataValidator, LGPDCompliance, SecurityManager, show_model_limitations
+from security_utils import (DataValidator, LGPDCompliance, SecurityManager, show_lgpd_notice,
+                            show_model_limitations)
 from ui import format_number, has_constant_hour, set_page_language_pt, show_metric
 from dashboard_tabs import (
     create_scatter_map, show_temporal_analysis, show_cluster_analysis,
@@ -75,7 +76,7 @@ def load_analysis_results() -> tuple[Optional[pd.DataFrame], float]:
     """Carrega os resultados da análise; gera-os na hora se ainda não existirem
     (por exemplo, na primeira execução da demo online)."""
     if not os.path.exists(RESULTS_FILE):
-        with st.spinner("Gerando a análise pela primeira vez (cerca de 30 segundos)..."):
+        with st.spinner("Gerando a análise pela primeira vez (leva alguns segundos)..."):
             run_full_analysis()
     try:
         return _load_results(os.path.getmtime(RESULTS_FILE))
@@ -348,7 +349,8 @@ def main():
             with tab:
                 draw()
 
-    # Logout
+    # Aviso de privacidade (demonstrativo) e logout
+    show_lgpd_notice()
     if st.sidebar.button("Sair"):
         st.session_state.clear()
         st.rerun()

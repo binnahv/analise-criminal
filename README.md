@@ -2,7 +2,7 @@
 
 > Projeto acadêmico (PI) — dashboard interativo em Streamlit para análise exploratória de ocorrências criminais, com validação de dados, clustering, detecção de anomalias e um modelo de classificação.
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.57+-red.svg)](https://streamlit.io)
 [![Testes](https://github.com/binnahv/analise-criminal/actions/workflows/tests.yml/badge.svg)](https://github.com/binnahv/analise-criminal/actions)
 
@@ -49,9 +49,9 @@ O dataset foi fornecido pelo professor e já veio com **inconsistências**, que 
 
 - **Dashboard com 10 abas:** geográfica, temporal, clusters, anomalias, previsão, investigação, perfil de suspeitos, gravidade, modus operandi e estatísticas.
 - **Filtros globais:** período, bairros, tipos de crime, faixa horária e dias da semana. Quando todas as ocorrências têm o mesmo horário (caso do dataset da disciplina), o filtro de horário é escondido e a análise por hora vira análise por mês do ano.
-- **Mapas:** mapa de calor, clusters e pontos individuais (Folium / PyDeck), com mapa base gratuito (Esri) que não exige chave de API. Por padrão o mapa mostra só as coordenadas coerentes com o bairro; uma chave permite incluir as inconsistentes. É possível trocar o provedor pelas variáveis `MAP_TILE_URL` e `MAP_TILE_ATTR`.
-- **Machine Learning (scikit-learn, XGBoost, LightGBM):** K-Means, Isolation Forest e um classificador de ocorrência grave avaliado contra um baseline (acurácia e ROC AUC).
-- **Módulo de segurança (demonstrativo):** login, criptografia Fernet dos arquivos gerados e log de auditoria.
+- **Mapas:** mapa de calor, clusters, pontos individuais (Folium) e densidade 3D (PyDeck), com mapa base gratuito (Esri) que não exige chave de API. Por padrão o mapa mostra só as coordenadas coerentes com o bairro; uma chave permite incluir as inconsistentes. É possível trocar o provedor pelas variáveis `MAP_TILE_URL` e `MAP_TILE_ATTR`.
+- **Machine Learning (scikit-learn e XGBoost):** K-Means, Isolation Forest e um classificador de ocorrência grave (XGBoost) avaliado contra um baseline (acurácia e ROC AUC). O código também aceita LightGBM ou Random Forest como alternativas ao XGBoost.
+- **Módulo de segurança (demonstrativo):** login, criptografia Fernet dos arquivos gerados, log de auditoria e um aviso de privacidade na barra lateral.
 - **Dashboard extra** de Violência Doméstica (`dashboard_violencia_domestica.py`), que aceita upload de CSV com formato documentado.
 - **Interface em português do Brasil:** números (3.482; 33,7%), datas (dd/mm/aaaa) e títulos dos gráficos no padrão brasileiro. A página se declara `pt-BR`, então a tradução automática do navegador funciona corretamente.
 
@@ -64,20 +64,20 @@ O dataset foi fornecido pelo professor e já veio com **inconsistências**, que 
 | Anomalias (Isolation Forest) | 175 registros (~5%) | Parâmetro de contaminação definido em 5% |
 | Modelo de ocorrência grave | Acurácia CV 0,593 vs. baseline 0,601; ROC AUC 0,487 | **Não supera o acaso** |
 
-O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latrocínio, estupro ou sequestro) a partir de bairro, dia, hora e mês. O resultado "ruim" é o esperado e **é um achado**: indica que o dataset não contém padrão real entre local/horário e gravidade.
+O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latrocínio, estupro ou sequestro) a partir de bairro, dia da semana, hora, mês, período do dia e fim de semana. O resultado "ruim" é o esperado e **é um achado**: indica que o dataset não contém padrão real entre local/horário e gravidade.
 
 ## 🧪 Limitações conhecidas
 
 - **Dados fictícios:** sem padrões reais, clustering e modelo preditivo servem como demonstração técnica de pipeline, não como conclusão sobre criminalidade.
 - **Histórico do modelo:** uma versão anterior previa "nível de risco" calculado pela contagem de ocorrências por bairro e usava o bairro como variável de entrada, o que gerava ~100% de acurácia por **vazamento de alvo (*target leakage*)**. O alvo foi redefinido para algo que não depende das features, e o modelo passou a ser comparado com um baseline.
 - A classificação "Baixo/Médio/Alto Risco" exibida em alguns gráficos é apenas **descritiva** (densidade de ocorrências por bairro) e não é prevista pelo modelo.
-- **Segurança é apenas didática:** o login `admin` é de demonstração e sua senha é gerada aleatoriamente na primeira execução (nada de senha fixa no código); as senhas usam PBKDF2-SHA256 com sal (hashes antigos em SHA-256 são convertidos no primeiro login) e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
+- **Segurança é apenas didática:** o login `admin` é de demonstração e sua senha é gerada aleatoriamente na primeira execução (nada de senha fixa no código); as senhas usam PBKDF2-SHA256 com sal (hashes antigos em SHA-256 são convertidos no primeiro login) e os arquivos usam `pickle`. **Não use em produção.** O aviso de privacidade da barra lateral é ilustrativo e não constitui conformidade legal com a LGPD.
 - O dataset não tem dados da **vítima** (sexo, idade). Por isso os dashboards só mostram o perfil do **suspeito**.
 - Os 21 testes cobrem login e hash de senha, criptografia, validação de dados e coordenadas, o alvo do modelo, a linha de entrada da previsão, o índice de gravidade, o upload de CSV, o relatório HTML, a formatação brasileira e a detecção do horário constante; não há testes automatizados de interface.
 
 ## 🛠️ Stack
 
-Python · Streamlit · Pandas · NumPy · scikit-learn · XGBoost · LightGBM · Plotly · Folium · PyDeck · cryptography · pytest · GitHub Actions
+Python · Streamlit · Pandas · NumPy · scikit-learn · XGBoost · Plotly · Folium · PyDeck · cryptography · pytest · GitHub Actions
 
 ## 🚀 Como executar
 
@@ -110,6 +110,8 @@ streamlit run dashboard_violencia_domestica.py
 pip install -r requirements-dev.txt
 pytest -q
 ```
+
+Os testes rodam automaticamente no GitHub Actions (Python 3.12) a cada push na `main`.
 
 Acesso local: <http://localhost:8501>
 
@@ -148,8 +150,8 @@ Uma demo online permite que qualquer pessoa veja o projeto sem instalar nada. Co
 4. Para o dashboard de violência doméstica, crie um segundo app com o arquivo `dashboard_violencia_domestica.py`
    (ele não tem login e não precisa de secrets).
 
-Na primeira visita o app gera a análise sozinho (leva cerca de 30 segundos). O `packages.txt` instala a
-biblioteca de sistema que o LightGBM exige.
+Na primeira visita o app gera a análise sozinho (leva alguns segundos). O `packages.txt` instala a
+biblioteca de sistema (OpenMP) que o LightGBM, importado pelo pipeline, exige.
 
 ### Carregar outro dataset no dashboard de Violência Doméstica
 
@@ -191,7 +193,7 @@ Sem as colunas opcionais o app funciona, mas as abas que dependem delas ficam li
 ├── configurar.py                        # Script de configuração inicial (opcional)
 ├── requirements.txt
 ├── requirements-dev.txt                 # pytest (opcional)
-├── packages.txt                         # Pacote do sistema exigido pelo LightGBM (deploy)
+├── packages.txt                         # Biblioteca de sistema exigida pelo LightGBM (deploy)
 ├── tests/
 │   └── test_core.py                     # Testes automatizados
 ├── data/
