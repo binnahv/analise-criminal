@@ -3,7 +3,7 @@
 > Projeto acadêmico (PI) — dashboard interativo em Streamlit para análise exploratória de ocorrências criminais, com validação de dados, clustering, detecção de anomalias e um modelo de classificação.
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.50+-red.svg)](https://streamlit.io)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.57+-red.svg)](https://streamlit.io)
 [![Testes](https://github.com/binnahv/analise-criminal/actions/workflows/tests.yml/badge.svg)](https://github.com/binnahv/analise-criminal/actions)
 
 ## 🎯 Sobre o projeto
@@ -71,9 +71,9 @@ O modelo tenta estimar se uma ocorrência é um crime grave (homicídio, latroc�
 - **Dados fictícios:** sem padrões reais, clustering e modelo preditivo servem como demonstração técnica de pipeline, não como conclusão sobre criminalidade.
 - **Histórico do modelo:** uma versão anterior previa "nível de risco" calculado pela contagem de ocorrências por bairro e usava o bairro como variável de entrada, o que gerava ~100% de acurácia por **vazamento de alvo (*target leakage*)**. O alvo foi redefinido para algo que não depende das features, e o modelo passou a ser comparado com um baseline.
 - A classificação "Baixo/Médio/Alto Risco" exibida em alguns gráficos é apenas **descritiva** (densidade de ocorrências por bairro) e não é prevista pelo modelo.
-- **Segurança é apenas didática:** o login `admin` é de demonstração e sua senha é gerada aleatoriamente na primeira execução (nada de senha fixa no código); as senhas usam SHA-256 sem sal e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
+- **Segurança é apenas didática:** o login `admin` é de demonstração e sua senha é gerada aleatoriamente na primeira execução (nada de senha fixa no código); as senhas usam PBKDF2-SHA256 com sal (hashes antigos em SHA-256 são convertidos no primeiro login) e os arquivos usam `pickle`. **Não use em produção.** O painel de privacidade é ilustrativo e não constitui conformidade legal com a LGPD.
 - O dataset não tem dados da **vítima** (sexo, idade). Por isso os dashboards só mostram o perfil do **suspeito**.
-- Os 17 testes cobrem login, criptografia, validação de dados e coordenadas, o alvo do modelo, o índice de gravidade, o upload de CSV, a formatação brasileira e a detecção do horário constante; não há testes automatizados de interface.
+- Os 21 testes cobrem login e hash de senha, criptografia, validação de dados e coordenadas, o alvo do modelo, a linha de entrada da previsão, o índice de gravidade, o upload de CSV, o relatório HTML, a formatação brasileira e a detecção do horário constante; não há testes automatizados de interface.
 
 ## 🛠️ Stack
 
@@ -93,11 +93,12 @@ source .venv/bin/activate      # Windows: .venv\Scripts\activate
 # 3. Instalar dependências
 pip install -r requirements.txt
 
-# 4. Gerar os resultados da análise
+# 4. (Opcional) gerar os resultados da análise antes de abrir o app
+#    Se você pular este passo, o dashboard gera tudo sozinho na primeira execução.
 python advanced_analysis.py
 
 # 5. Iniciar o dashboard principal
-streamlit run enhanced_app.py
+streamlit run streamlit_app.py
 
 # 6. (Opcional) dashboard de Violência Doméstica
 streamlit run dashboard_violencia_domestica.py
@@ -126,10 +127,29 @@ Para escolher a sua própria senha, defina a variável de ambiente antes de inic
 
 ```bash
 export ADMIN_PASSWORD="minha-senha"      # Windows (PowerShell): $env:ADMIN_PASSWORD="minha-senha"
-streamlit run enhanced_app.py
+streamlit run streamlit_app.py
 ```
 
 > A senha só é definida quando o arquivo `users.pkl` é criado. Para trocá-la depois, apague o `users.pkl` e inicie o app de novo.
+
+### Publicar uma demo online (Streamlit Community Cloud)
+
+Uma demo online permite que qualquer pessoa veja o projeto sem instalar nada. Com o repositório público:
+
+1. Acesse [share.streamlit.io](https://share.streamlit.io), entre com a conta do GitHub e clique em **Create app**.
+2. Escolha o repositório `binnahv/analise-criminal`, a branch `main` e o arquivo `streamlit_app.py`.
+3. Em **Advanced settings**, escolha Python 3.12 e cole em **Secrets**:
+   ```toml
+   ADMIN_PASSWORD = "escolha-uma-senha-de-demo"
+   DEMO_MODE = "1"
+   ```
+   Com `DEMO_MODE = "1"` a tela de login mostra o usuário e a senha de demonstração. Use uma senha
+   **exclusiva da demo**, nunca uma senha pessoal.
+4. Para o dashboard de violência doméstica, crie um segundo app com o arquivo `dashboard_violencia_domestica.py`
+   (ele não tem login e não precisa de secrets).
+
+Na primeira visita o app gera a análise sozinho (leva cerca de 30 segundos). O `packages.txt` instala a
+biblioteca de sistema que o LightGBM exige.
 
 ### Carregar outro dataset no dashboard de Violência Doméstica
 
@@ -154,7 +174,7 @@ Sem as colunas opcionais o app funciona, mas as abas que dependem delas ficam li
 ## 📁 Estrutura
 
 ```
-├── enhanced_app.py                      # Dashboard principal (login + 10 abas)
+├── streamlit_app.py                     # Dashboard principal (login + 10 abas)
 ├── dashboard_tabs/                      # Abas do dashboard principal
 │   ├── mapa.py · padroes.py · previsao.py
 │   └── investigacao.py · estatisticas.py
@@ -168,9 +188,10 @@ Sem as colunas opcionais o app funciona, mas as abas que dependem delas ficam li
 ├── security_utils.py                    # Login, criptografia e validação de dados
 ├── map_utils.py                         # Mapa base gratuito e sem chave de API
 ├── ui.py                                # Formatação pt-BR, gráficos padronizados e tratamento do horário
-├── setup.py                             # Configuração inicial (opcional)
+├── configurar.py                        # Script de configuração inicial (opcional)
 ├── requirements.txt
 ├── requirements-dev.txt                 # pytest (opcional)
+├── packages.txt                         # Pacote do sistema exigido pelo LightGBM (deploy)
 ├── tests/
 │   └── test_core.py                     # Testes automatizados
 ├── data/
