@@ -30,10 +30,19 @@ O professor preparou o dataset **com erros propositais**: um dos objetivos da di
 
 > 🔎 Além dos erros, os dados são sintéticos e aleatórios, então **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
 
-## Mapa de Calor
-![Mapa de calor](docs/mapa.png)
-## Previsão
-![Previsão](docs/previsao.png)
+## 📸 Telas
+
+**Mapa de calor:** só as coordenadas coerentes com o bairro, com a contagem do que foi descartado.
+![Aba geográfica com mapa de calor](docs/mapa.png)
+
+**Análise temporal:** o app detecta que todas as ocorrências estão às 19h e troca a análise por hora pela análise por mês.
+![Aba temporal com distribuição por mês e por dia da semana](docs/temporal.png)
+
+**Previsão:** estimativa de ocorrência grave e importância das variáveis.
+![Aba de previsão com importância das variáveis](docs/previsao.png)
+
+**Dashboard de Violência Doméstica:** upload de CSV, filtros e mapa.
+![Dashboard de violência doméstica](docs/violencia_domestica.png)
 
 
 ## ✨ Funcionalidades

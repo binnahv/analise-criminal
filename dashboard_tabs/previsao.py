@@ -8,6 +8,24 @@ import streamlit as st
 from security_utils import SecurityManager
 from ui import metrica, mostrar_grafico
 
+PREFIXOS_VARIAVEIS = {
+    'bairro_': 'Bairro: ',
+    'dia_semana_': 'Dia: ',
+    'periodo_dia_': 'Período: ',
+}
+NOMES_VARIAVEIS = {'mes': 'Mês', 'hora': 'Hora', 'fim_semana': 'Fim de semana',
+                   'fim_semana_True': 'Fim de semana'}
+
+
+def nome_variavel(coluna: str) -> str:
+    """'dia_semana_terça-feira' -> 'Dia: terça-feira'; 'mes' -> 'Mês'."""
+    if coluna in NOMES_VARIAVEIS:
+        return NOMES_VARIAVEIS[coluna]
+    for prefixo, rotulo in PREFIXOS_VARIAVEIS.items():
+        if coluna.startswith(prefixo):
+            return rotulo + coluna[len(prefixo):]
+    return coluna
+
 
 def show_risk_prediction():
     """Aba de previsão de risco"""
@@ -120,6 +138,7 @@ def show_risk_prediction():
                     'feature': model_data['model_columns'],
                     'importance': model.feature_importances_
                 }).sort_values('importance', ascending=False).head(10)
+                importance_df['feature'] = importance_df['feature'].map(nome_variavel)
 
                 fig_importance = px.bar(
                     importance_df,
@@ -128,7 +147,10 @@ def show_risk_prediction():
                     orientation='h',
                     title="Top 10 Variáveis Mais Importantes"
                 )
+                fig_importance.update_yaxes(categoryorder='total ascending')
                 mostrar_grafico(fig_importance)
+                st.caption("Com o modelo no nível do acaso (ROC AUC ≈ 0,49), a importância "
+                           "das variáveis não indica um padrão real.")
 
         except Exception:
             st.warning("Não foi possível exibir a importância das variáveis.")
