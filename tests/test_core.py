@@ -1,5 +1,6 @@
 """Testes básicos do projeto. Execute com:  pytest -q"""
 import os
+import secrets
 import sys
 
 import pandas as pd
@@ -9,7 +10,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from security_utils import DataValidator, SecurityManager  # noqa: E402
 
-SENHA_TESTE = "senha-de-teste-123"
+
+
+def nova_senha() -> str:
+    """Senha aleatória para os testes (nenhuma senha fixa fica no código)."""
+    return secrets.token_urlsafe(12)
+
+
+SENHA_TESTE = nova_senha()
 DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "data", "dataset_ocorrencias_delegacia_5.csv")
 
@@ -44,14 +52,15 @@ def test_senha_aleatoria_gerada_e_mostrada_no_terminal(tmp_path, monkeypatch, ca
 
 
 def test_login_com_senha_errada_falha(manager):
-    ok, user = manager.authenticate_user("admin", "senha-errada")
+    ok, user = manager.authenticate_user("admin", nova_senha())
     assert not ok and user is None
 
 
 def test_create_user_e_duplicado(manager):
-    assert manager.create_user("aluna", "123456") is True
-    assert manager.create_user("aluna", "outra") is False
-    assert manager.authenticate_user("aluna", "123456")[0] is True
+    senha = nova_senha()
+    assert manager.create_user("aluna", senha) is True
+    assert manager.create_user("aluna", nova_senha()) is False
+    assert manager.authenticate_user("aluna", senha)[0] is True
 
 
 def test_criptografia_ida_e_volta(manager):
@@ -166,18 +175,20 @@ def test_dataset_tem_horario_constante_e_e_detectado():
 
 
 def test_senha_usa_pbkdf2_com_sal(manager):
-    h1, h2 = manager.hash_password("mesma"), manager.hash_password("mesma")
+    senha = nova_senha()
+    h1, h2 = manager.hash_password(senha), manager.hash_password(senha)
     assert h1.startswith("pbkdf2_sha256$") and h1 != h2  # sal diferente a cada hash
-    assert manager.verify_password("mesma", h1) and not manager.verify_password("outra", h1)
+    assert manager.verify_password(senha, h1) and not manager.verify_password(nova_senha(), h1)
 
 
 def test_hash_antigo_sha256_continua_valendo_e_e_atualizado(manager):
     import hashlib
+    senha = nova_senha()
     users = manager._load_users()
-    users["antigo"] = {"password": hashlib.sha256(b"123").hexdigest(), "role": "analyst",
+    users["antigo"] = {"password": hashlib.sha256(senha.encode()).hexdigest(), "role": "analyst",
                        "permissions": ["read"]}
     manager._save_users(users)
-    assert manager.authenticate_user("antigo", "123")[0] is True
+    assert manager.authenticate_user("antigo", senha)[0] is True
     assert manager._load_users()["antigo"]["password"].startswith("pbkdf2_sha256$")
 
 
