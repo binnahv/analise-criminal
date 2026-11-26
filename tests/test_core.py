@@ -156,7 +156,7 @@ def test_formatacao_brasileira_de_numeros():
 
 
 def test_dataset_tem_horario_constante_e_e_detectado():
-    """Erro proposital do dataset: todas as ocorrências às 19h."""
+    """Inconsistência do dataset: todas as ocorrências às 19h."""
     from ui import horario_constante
     df = pd.read_csv(DATA, parse_dates=["data_ocorrencia"])
     df["hora"] = df["data_ocorrencia"].dt.hour

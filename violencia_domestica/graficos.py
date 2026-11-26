@@ -128,7 +128,7 @@ def show_mapa_violencia(df):
                        "geradas aleatoriamente, e não de endereços reais.")
         else:
             st.caption("ℹ️ O mapa mostra só os casos com coordenada coerente com o bairro (os dados da "
-                       "disciplina têm erros propositais). Ligue **Incluir coordenadas inconsistentes** "
+                       "disciplina têm inconsistências, aparentemente intencionais). Ligue **Incluir coordenadas inconsistentes** "
                        "para ver todos.")
 
 

@@ -112,7 +112,7 @@ def aviso_horario_constante(df: pd.DataFrame) -> None:
     hora = int(df['hora'].dropna().iloc[0]) if df['hora'].notna().any() else 0
     st.info(
         f"🕒 **Horário indisponível nestes dados.** Todas as ocorrências estão registradas "
-        f"às {hora}h — mais uma inconsistência proposital do dataset da disciplina. "
+        f"às {hora}h — mais uma inconsistência do dataset da disciplina, aparentemente intencional. "
         "Por isso a análise por hora foi substituída pela distribuição por **mês do ano**."
     )
 

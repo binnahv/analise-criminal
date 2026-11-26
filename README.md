@@ -16,7 +16,7 @@ Trabalho desenvolvido na faculdade (curso de Análise e Desenvolvimento de Siste
 
 O arquivo `data/dataset_ocorrencias_delegacia_5.csv` tem **5.000 ocorrências** (2022–2025) em **10 bairros do Recife**, com 14 colunas (tipo de crime, modus operandi, arma, vítimas, suspeitos, delegacia, status da investigação, coordenadas etc.).
 
-O professor preparou o dataset **com erros propositais**: um dos objetivos da disciplina era justamente perceber essas inconsistências e decidir como tratá-las. O que foi encontrado:
+O dataset foi fornecido pelo professor e já veio com **inconsistências**, que tudo indica terem sido deixadas de propósito: parte do trabalho era justamente perceber esses problemas e decidir como tratá-los. O que foi encontrado:
 
 | Inconsistência encontrada | O que o projeto faz |
 |---|---|
@@ -28,7 +28,7 @@ O professor preparou o dataset **com erros propositais**: um dos objetivos da di
 | Todas as ocorrências registradas no mesmo horário (19h) | O app detecta isso, avisa na tela e troca a análise por hora pela análise por mês do ano |
 | Coordenadas sorteadas num retângulo, e não em endereços reais | O mapa mostra só os pontos coerentes com o bairro; uma chave permite ver todos e enxergar o padrão |
 
-> 🔎 Além dos erros, os dados são sintéticos e aleatórios, então **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
+> 🔎 Além dessas inconsistências, os dados são sintéticos e aleatórios, então **não existem padrões reais para os modelos aprenderem**. Os resultados de clustering e previsão devem ser lidos como demonstração técnica, e não como conclusão sobre criminalidade.
 
 ## 📸 Telas
 

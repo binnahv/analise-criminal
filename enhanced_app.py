@@ -382,7 +382,7 @@ def show_geographic_analysis(df, filters):
         incluir_inconsistentes = st.toggle(
             "Incluir coordenadas inconsistentes", False,
             help="Mostra também as ocorrências cuja coordenada não fica no bairro informado. "
-                 "Útil para enxergar o erro proposital do dataset.")
+                 "Útil para enxergar a inconsistência do dataset.")
 
         st.markdown("#### Opções de Visualização")
 
@@ -409,7 +409,7 @@ def show_geographic_analysis(df, filters):
                        "geradas aleatoriamente, e não de endereços reais.")
         else:
             st.caption(
-                "ℹ️ O dataset da disciplina tem erros propositais: só parte das coordenadas fica "
+                "ℹ️ O dataset da disciplina tem inconsistências (aparentemente intencionais): só parte das coordenadas fica "
                 "dentro do bairro informado. O mapa mostra apenas os pontos coerentes. "
                 "Ligue **Incluir coordenadas inconsistentes** para ver todos.")
 
