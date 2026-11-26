@@ -59,7 +59,7 @@ def show_temporal_analysis(df):
 
             # Identificar dia mais crítico
             peak_day = daily_counts.idxmax()
-            st.info(f"📅 **Dia mais crítico:** {peak_day} com {daily_counts[peak_day]} ocorrências")
+            st.info(f"📅 **Dia com mais registros:** {peak_day} com {daily_counts[peak_day]} ocorrências")
 
     # Análise mensal
     if 'data_ocorrencia' in df.columns:
@@ -199,7 +199,7 @@ def show_cluster_analysis(df, sil_score):
 
 def show_anomaly_analysis(df):
     """Aba de análise de anomalias"""
-    st.header("🚨 Ocorrências Atípicas - Alertas de Segurança")
+    st.header("🚨 Ocorrências Atípicas (Isolation Forest)")
 
     if 'anomalia' not in df.columns:
         st.warning("Dados de detecção de anomalias não disponíveis.")

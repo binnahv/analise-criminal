@@ -31,7 +31,7 @@ from violencia_domestica import (
 )
 
 st.set_page_config(
-    page_title="Dashboard Violência Doméstica - DEAM",
+    page_title="Dashboard de Violência Doméstica - Projeto Acadêmico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -137,7 +137,7 @@ def main() -> None:
     st.markdown("""
     <div class="main-header">
         <h1>Dashboard de Violência Doméstica</h1>
-        <p><strong>Aluna:</strong> Sabrina Vidal</p>
+        <p><strong>Aluna:</strong> Sabrina Vidal · Projeto acadêmico · dados fictícios</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -169,7 +169,7 @@ def main() -> None:
                 TABS[name](df_filtered)
 
     st.markdown("---")
-    st.caption("Dashboard de Violência Doméstica - DEAM | Projeto Acadêmico")
+    st.caption("Dashboard de Violência Doméstica | Projeto acadêmico com dados fictícios")
 
 
 if __name__ == "__main__":

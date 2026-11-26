@@ -14,7 +14,7 @@ from .dados import clean_geographic_data
 
 
 def show_kpis(df):
-    """Exibe KPIs específicos para Polícia Civil"""
+    """Exibe os indicadores principais do dashboard."""
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
@@ -163,7 +163,7 @@ def show_temporal_patterns(df):
 
             # Identificar horário crítico
             hora_pico = hourly_data.idxmax()
-            st.info(f"**Horário mais crítico:** {hora_pico}:00 com {hourly_data[hora_pico]} casos")
+            st.info(f"**Horário com mais registros:** {hora_pico}:00 com {hourly_data[hora_pico]} casos")
 
     with col2:
         st.markdown("#### Distribuição por Dia da Semana")
@@ -184,12 +184,12 @@ def show_temporal_patterns(df):
 
             # Identificar dia crítico
             dia_pico = daily_data.idxmax()
-            st.info(f"**Dia mais crítico:** {dia_pico} com {daily_data[dia_pico]} casos")
+            st.info(f"**Dia com mais registros:** {dia_pico} com {daily_data[dia_pico]} casos")
 
 
 def show_suspect_profiles(df):
-    """Análise do perfil dos suspeitos para Polícia Civil"""
-    st.subheader("Perfil dos Suspeitos - Inteligência Policial")
+    """Análise do perfil dos suspeitos."""
+    st.subheader("Perfil dos Suspeitos")
 
     col1, col2, col3 = st.columns(3)
 
@@ -296,7 +296,7 @@ def show_suspect_profiles(df):
 
 def show_police_effectiveness(df):
     """Análise da efetividade das investigações policiais"""
-    st.subheader("Efetividade Policial - Indicadores de Performance")
+    st.subheader("Resolução dos Casos por Delegacia e Tipo de Crime")
 
     # Isso Verifica se as colunas "necessárias" existem
     if 'status_caso' not in df.columns:
@@ -329,7 +329,7 @@ def show_police_effectiveness(df):
         show_chart(fig_status)
 
     with col2:
-        st.markdown("#### Performance por Delegacia")
+        st.markdown("#### Taxa de Resolução por Delegacia")
         if 'orgao_responsavel' in df.columns:
             delegacia_stats = df.groupby('orgao_responsavel').agg({
                 'status_caso': lambda x: (x == 'Concluído').sum() / len(x) * 100
@@ -351,8 +351,9 @@ def show_police_effectiveness(df):
             if len(delegacia_stats) > 0:
                 melhor = delegacia_stats.index[0]
                 pior = delegacia_stats.index[-1]
-                st.info(f"**Melhor:** {melhor} ({delegacia_stats.iloc[0,0]:.1f}%)")
-                st.warning(f"**Precisa melhorar:** {pior} ({delegacia_stats.iloc[-1,0]:.1f}%)")
+                st.info(f"**Maior taxa nos dados:** {melhor} ({delegacia_stats.iloc[0,0]:.1f}%) · "
+                        f"**Menor:** {pior} ({delegacia_stats.iloc[-1,0]:.1f}%)")
+                st.caption("Com dados fictícios, a ordem entre as delegacias não avalia nenhuma unidade real.")
         else:
             st.warning("Coluna 'orgao_responsavel' não disponível")
 

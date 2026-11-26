@@ -114,18 +114,18 @@ def _show_cluster_distribution(data: pd.DataFrame) -> None:
 
 
 def _show_cluster_insights(data: pd.DataFrame, show_hour: bool) -> None:
-    st.markdown("### Insights Operacionais dos Clusters")
+    st.markdown("### O que caracteriza cada cluster")
     for cluster_id, group in data.groupby('cluster_kmeans'):
         if show_hour:
             mean_hour = group['hora'].mean()
             if mean_hour >= 22 or mean_hour <= 6:
-                st.info(f"💡 Cluster {cluster_id}: Padrão noturno/madrugada - Reforçar patrulhamento noturno")
+                st.info(f"💡 Cluster {cluster_id}: concentra casos à noite/madrugada")
             elif 6 < mean_hour <= 12:
-                st.info(f"💡 Cluster {cluster_id}: Padrão matinal - Monitoramento diurno")
+                st.info(f"💡 Cluster {cluster_id}: concentra casos pela manhã")
         top = group['bairro'].value_counts()
         share = top.iloc[0] / len(group) * 100
         if share > 70:
-            st.info(f"💡 Cluster {cluster_id}: Alta concentração em {top.index[0]} ({share:.1f}%) - Foco geográfico")
+            st.info(f"💡 Cluster {cluster_id}: {share:.1f}% dos casos em {top.index[0]}")
 
 
 def show_clustering_analysis(df: pd.DataFrame) -> None:
@@ -225,16 +225,14 @@ def _show_anomaly_details(anomalies: pd.DataFrame) -> None:
 
 
 def _show_anomaly_recommendations(anomalies: pd.DataFrame, show_hour: bool) -> None:
-    st.markdown("### Recomendações Operacionais")
-    st.info("💡 **Investigação Prioritária:** Casos anômalos podem indicar padrões criminais "
-            "emergentes ou situações de alto risco.")
-    st.warning("⚠️ **Atenção Especial:** Monitorar locais e horários onde anomalias são frequentes.")
+    st.markdown("### Como interpretar")
+    st.info("💡 Em dados reais, casos atípicos seriam candidatos a uma revisão manual: podem ser "
+            "erros de registro ou padrões novos. Aqui os dados são fictícios.")
     if show_hour and _is_night(anomalies['hora']).mean() > 0.5:
-        st.error("🌙 **Alerta Noturno:** Muitas anomalias no período noturno - Reforçar patrulhamento.")
+        st.info("🌙 A maioria das anomalias está no período noturno.")
     top = anomalies['bairro'].value_counts()
     if top.iloc[0] > len(anomalies) * 0.3:
-        st.error(f"📍 **Alerta Geográfico:** Concentração de anomalias em {top.index[0]} - "
-                 "Investigação especial necessária.")
+        st.info(f"📍 Mais de 30% das anomalias estão em {top.index[0]}.")
 
 
 def show_anomaly_detection(df: pd.DataFrame) -> None:

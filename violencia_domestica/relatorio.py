@@ -58,16 +58,16 @@ def _insights(df: pd.DataFrame, summary: dict[str, Any]) -> list[str]:
     top_bairros = df['bairro'].value_counts()
     if len(top_bairros) and top_bairros.iloc[0] / summary['total'] * 100 > 20:
         share = top_bairros.iloc[0] / summary['total'] * 100
-        insights.append(f"Alta concentração de casos em {top_bairros.index[0]} ({share:.1f}% do total) "
-                        "- Requer atenção especial")
+        insights.append(f"Alta concentração de casos em {top_bairros.index[0]} ({format_number(share)}% do total) "
+                        "- em dados reais, mereceria uma análise mais detalhada")
     rate = summary['resolution_rate']
     if rate < 70:
-        insights.append(f"Taxa de resolução baixa ({rate:.1f}%) - Necessário revisar processos investigativos")
+        insights.append(f"Taxa de resolução baixa nos dados ({format_number(rate)}%)")
     elif rate > 85:
-        insights.append(f"Excelente taxa de resolução ({rate:.1f}%) - Manter padrão de qualidade")
+        insights.append(f"Taxa de resolução alta nos dados ({format_number(rate)}%)")
     peak = summary['peak_hour']
     if not summary['single_hour'] and (peak >= 22 or peak <= 6):
-        insights.append(f"Pico de ocorrências no período noturno ({peak}h) - Reforçar patrulhamento noturno")
+        insights.append(f"Pico de ocorrências no período noturno ({peak}h)")
     return insights
 
 
@@ -106,7 +106,7 @@ def generate_html_report(df: pd.DataFrame) -> str:
 <body>
     <div class="header">
         <h1>Relatório de Análise - Violência Doméstica</h1>
-        <p><strong>Delegacia Especializada de Atendimento à Mulher - DEAM</strong></p>
+        <p><strong>Projeto acadêmico · dados fictícios</strong> — não é um documento oficial</p>
         <p>Data de Geração: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
     </div>
     <div class="section"><h2>📊 Resumo Executivo</h2>{executive}</div>
@@ -114,11 +114,11 @@ def generate_html_report(df: pd.DataFrame) -> str:
         {_count_table(df['tipo_crime'].value_counts(), total, 'Tipo de Crime', 'Percentual')}</div>
     <div class="section"><h2>📍 Bairros Mais Afetados</h2>
         {_count_table(df['bairro'].value_counts().head(5), total, 'Bairro', 'Percentual do Total')}</div>
-    <div class="section"><h2>💡 Insights e Recomendações</h2>{insights}</div>
+    <div class="section"><h2>💡 Observações sobre os dados</h2>{insights}</div>
     <div class="section"><h2>⚠️ Limitações do Estudo</h2>{_boxes(LIMITATIONS, "warning")}</div>
     <div class="section"><h2>📈 Métricas de Machine Learning</h2>{_boxes(ML_SUMMARY, "metric")}</div>
     <div class="footer">
-        <p><strong>Dashboard de Violência Doméstica - DEAM</strong></p>
+        <p><strong>Dashboard de Violência Doméstica</strong></p>
         <p>Projeto Acadêmico | Análise de Dados Criminais</p>
         <p><em>Este relatório foi gerado automaticamente pelo sistema de análise de dados.</em></p>
     </div>

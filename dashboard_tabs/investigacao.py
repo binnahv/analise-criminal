@@ -61,12 +61,14 @@ def show_investigative_performance(df):
     st.dataframe(delegacia_stats, width='stretch')
 
     # Insights
-    st.subheader("💡 Insights Investigativos")
+    st.subheader("💡 Observações")
     melhor_delegacia = delegacia_stats['Taxa_Resolucao'].str.rstrip('%').astype(float).idxmax()
     pior_delegacia = delegacia_stats['Taxa_Resolucao'].str.rstrip('%').astype(float).idxmin()
 
-    st.success(f"🏆 **Melhor Performance:** {melhor_delegacia}")
-    st.error(f"⚠️ **Necessita Atenção:** {pior_delegacia}")
+    st.info(f"📈 **Maior taxa de resolução nos dados:** {melhor_delegacia} · "
+            f"**Menor:** {pior_delegacia}")
+    st.caption("Com dados fictícios e diferenças pequenas entre as delegacias, a ordem é obra do "
+               "acaso e não avalia o desempenho de nenhuma unidade real.")
 
 
 def show_suspect_profile(df):
@@ -291,7 +293,7 @@ def show_gravity_index(df):
         show_chart(fig_bairro)
 
     # Casos de alta gravidade
-    st.subheader("🚨 Casos de Alta Gravidade - Prioridade Investigativa")
+    st.subheader("🚨 Casos de Maior Gravidade (pelo índice)")
 
     casos_alta = df[df['nivel_gravidade'] == 'Alta'].sort_values('indice_gravidade', ascending=False)
 
@@ -396,16 +398,16 @@ def show_modus_operandi_analysis(df):
     show_chart(fig_heatmap)
 
     # Insights e recomendações
-    st.subheader("💡 Insights e Recomendações")
+    st.subheader("💡 Observações")
 
     modus_predominante = modus_freq.index[0]
     bairro_problema = df[df['descricao_modus_operandi'] == modus_predominante]['bairro'].mode()[0]
 
     insights = [
         f"🎯 **Padrão Dominante:** {modus_predominante} ({modus_freq.iloc[0]} casos)",
-        f"🗺️ **Região Crítica:** {bairro_problema} concentra mais casos deste padrão",
+        f"🗺️ **Bairro com mais casos deste padrão:** {bairro_problema}",
         f"📊 **Diversidade:** {len(modus_freq)} padrões diferentes identificados",
-        "⚠️ **Recomendação:** Focar operações preventivas no padrão dominante"
+        "🔎 **Em dados reais**, um padrão dominante seria um bom ponto de partida para investigar a causa; aqui os dados são fictícios"
     ]
 
     for insight in insights:
