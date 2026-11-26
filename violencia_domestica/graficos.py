@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from ui import aviso_horario_constante, formatar_numero, grafico_mes_do_ano, horario_constante, metrica, mostrar_grafico
+from ui import show_constant_hour_notice, format_number, show_month_of_year_chart, has_constant_hour, show_metric, show_chart
 from streamlit_folium import st_folium
 
 from map_utils import new_folium_map
@@ -19,32 +19,32 @@ def show_kpis(df):
 
     with col1:
         total_casos = len(df)
-        metrica("Total de Casos", f"{total_casos:,}")
+        show_metric("Total de Casos", f"{total_casos:,}")
 
     with col2:
         # Usar status_caso que é o campo mapeado corretamente
         if 'status_caso' in df.columns:
             casos_concluidos = len(df[df['status_caso'] == 'Concluído'])
             taxa_resolucao = (casos_concluidos / total_casos * 100) if total_casos > 0 else 0
-            metrica("Taxa de Resolução", f"{taxa_resolucao:.1f}%")
+            show_metric("Taxa de Resolução", f"{taxa_resolucao:.1f}%")
         else:
-            metrica("Taxa de Resolução", "N/A", help="Coluna 'status_caso' não disponível")
+            show_metric("Taxa de Resolução", "N/A", help="Coluna 'status_caso' não disponível")
 
     with col3:
         casos_arma_fogo = len(df[df['arma_utilizada'] == 'Arma de Fogo']) if 'arma_utilizada' in df.columns else 0
-        metrica("Casos c/ Arma de Fogo", f"{casos_arma_fogo:,}")
+        show_metric("Casos c/ Arma de Fogo", f"{casos_arma_fogo:,}")
 
     with col4:
         casos_multiplas_vitimas = len(df[df['quantidade_vitimas'] > 1]) if 'quantidade_vitimas' in df.columns else 0
-        metrica("Múltiplas Vítimas", f"{casos_multiplas_vitimas:,}")
+        show_metric("Múltiplas Vítimas", f"{casos_multiplas_vitimas:,}")
 
     with col5:
         # Garantir que atualiza com os filtros aplicados
         delegacias_ativas = df['orgao_responsavel'].nunique() if 'orgao_responsavel' in df.columns and len(df) > 0 else 0
-        metrica("Delegacias Envolvidas", f"{delegacias_ativas:,}")
+        show_metric("Delegacias Envolvidas", f"{delegacias_ativas:,}")
 
 
-def show_mapa_violencia(df):
+def show_violence_map(df):
     """Exibe mapa específico de violência doméstica"""
     st.subheader("Distribuição Geográfica dos Casos")
 
@@ -69,9 +69,9 @@ def show_mapa_violencia(df):
     df_clean = df.dropna(subset=['latitude', 'longitude']) if incluir_inconsistentes else df_coerente
 
     with col2:
-        metrica("No mapa", len(df_clean))
-        metrica("Total filtrado", len(df))
-        metrica("Coordenadas coerentes", f"{formatar_numero(len(df_coerente) / len(df) * 100)}%")
+        show_metric("No mapa", len(df_clean))
+        show_metric("Total filtrado", len(df))
+        show_metric("Coordenadas coerentes", f"{format_number(len(df_coerente) / len(df) * 100)}%")
 
     if len(df_clean) == 0:
         with col1:
@@ -132,20 +132,20 @@ def show_mapa_violencia(df):
                        "para ver todos.")
 
 
-def show_analise_temporal(df):
+def show_temporal_patterns(df):
     """Análise temporal específica para violência doméstica"""
     st.subheader("Padrões Temporais da Violência Doméstica")
 
-    sem_horario = horario_constante(df)
+    sem_horario = has_constant_hour(df)
     if sem_horario:
-        aviso_horario_constante(df)
+        show_constant_hour_notice(df)
 
     col1, col2 = st.columns(2)
 
     with col1:
         if sem_horario:
             st.markdown("#### Distribuição por Mês do Ano")
-            grafico_mes_do_ano(df, "Casos por mês do ano")
+            show_month_of_year_chart(df, "Casos por mês do ano")
         elif 'hora' in df.columns:
             st.markdown("#### Distribuição por Hora do Dia")
             hourly_data = df['hora'].value_counts().sort_index()
@@ -159,7 +159,7 @@ def show_analise_temporal(df):
                 color_continuous_scale='Reds'
             )
             fig_hora.update_layout(showlegend=False)
-            mostrar_grafico(fig_hora)
+            show_chart(fig_hora)
 
             # Identificar horário crítico
             hora_pico = hourly_data.idxmax()
@@ -180,14 +180,14 @@ def show_analise_temporal(df):
                 color_continuous_scale='Reds'
             )
             fig_dia.update_xaxes(tickangle=45)
-            mostrar_grafico(fig_dia)
+            show_chart(fig_dia)
 
             # Identificar dia crítico
             dia_pico = daily_data.idxmax()
             st.info(f"**Dia mais crítico:** {dia_pico} com {daily_data[dia_pico]} casos")
 
 
-def show_perfil_suspeitos(df):
+def show_suspect_profiles(df):
     """Análise do perfil dos suspeitos para Polícia Civil"""
     st.subheader("Perfil dos Suspeitos - Inteligência Policial")
 
@@ -204,7 +204,7 @@ def show_perfil_suspeitos(df):
                 title="Suspeitos por Gênero",
                 color_discrete_sequence=['#1f77b4', '#ff7f0e', '#d62728']
             )
-            mostrar_grafico(fig_genero)
+            show_chart(fig_genero)
 
             # Insight policial
             if 'Masculino' in genero_suspeito.index:
@@ -232,7 +232,7 @@ def show_perfil_suspeitos(df):
                     color=idade_dist.values,
                     color_continuous_scale='Reds'
                 )
-                mostrar_grafico(fig_idade)
+                show_chart(fig_idade)
 
                 # Insight policial
                 faixa_principal = idade_dist.idxmax()
@@ -250,7 +250,7 @@ def show_perfil_suspeitos(df):
                 color=qtd_suspeitos.values,
                 color_continuous_scale='Oranges'
             )
-            mostrar_grafico(fig_qtd)
+            show_chart(fig_qtd)
 
             # Insight policial
             casos_multiplos = len(df[df['quantidade_suspeitos'] > 1])
@@ -276,7 +276,7 @@ def show_perfil_suspeitos(df):
                 color_continuous_scale='RdYlBu',
                 text_auto='.1f'
             )
-            mostrar_grafico(fig_cross)
+            show_chart(fig_cross)
 
     with col2:
         st.markdown("#### Idade Média por Crime")
@@ -291,10 +291,10 @@ def show_perfil_suspeitos(df):
                 color=idade_media.values,
                 color_continuous_scale='Viridis'
             )
-            mostrar_grafico(fig_idade_media)
+            show_chart(fig_idade_media)
 
 
-def show_efetividade_policial(df):
+def show_police_effectiveness(df):
     """Análise da efetividade das investigações policiais"""
     st.subheader("Efetividade Policial - Indicadores de Performance")
 
@@ -313,7 +313,7 @@ def show_efetividade_policial(df):
         concluidos = status_counts.get('Concluído', 0)
         taxa_resolucao = (concluidos / total_casos * 100) if total_casos > 0 else 0
 
-        metrica("Taxa de Resolução", f"{taxa_resolucao:.1f}%")
+        show_metric("Taxa de Resolução", f"{taxa_resolucao:.1f}%")
 
         # O gráfico de status
         fig_status = px.pie(
@@ -326,7 +326,7 @@ def show_efetividade_policial(df):
                 'Arquivado': '#dc3545'
             }
         )
-        mostrar_grafico(fig_status)
+        show_chart(fig_status)
 
     with col2:
         st.markdown("#### Performance por Delegacia")
@@ -345,7 +345,7 @@ def show_efetividade_policial(df):
                 color=delegacia_stats.values.flatten(),
                 color_continuous_scale='RdYlGn'
             )
-            mostrar_grafico(fig_delegacia)
+            show_chart(fig_delegacia)
 
             # A melhor e pior delegacia
             if len(delegacia_stats) > 0:
@@ -372,7 +372,7 @@ def show_efetividade_policial(df):
             color_continuous_scale='RdYlGn'
         )
         fig_crime.update_xaxes(tickangle=45)
-        mostrar_grafico(fig_crime)
+        show_chart(fig_crime)
 
 
 def show_modus_operandi(df):
@@ -394,7 +394,7 @@ def show_modus_operandi(df):
                 color=armas.values,
                 color_continuous_scale='Reds'
             )
-            mostrar_grafico(fig_armas)
+            show_chart(fig_armas)
 
             # Insight sobre armas
             arma_principal = armas.index[0] if len(armas) > 0 else "N/A"
@@ -414,7 +414,7 @@ def show_modus_operandi(df):
                 color=modus.values,
                 color_continuous_scale='Blues'
             )
-            mostrar_grafico(fig_modus)
+            show_chart(fig_modus)
 
             # Insight sobre modus
             modus_principal = modus.index[0] if len(modus) > 0 else "N/A"
@@ -441,7 +441,7 @@ def show_modus_operandi(df):
             color_continuous_scale='Reds',
             text_auto=True
         )
-        mostrar_grafico(fig_cross)
+        show_chart(fig_cross)
 
         # Insights operacionais
         st.markdown("#### Insights Operacionais:")
@@ -453,7 +453,7 @@ def show_modus_operandi(df):
                     st.markdown(f"- **{crime}:** Arma predominante = {arma_mais_usada.iloc[0]}")
 
 
-def show_correlacoes(df):
+def show_correlations(df):
     """Análise de correlações e padrões"""
     st.subheader("Correlações e Padrões Criminais")
 
@@ -477,7 +477,7 @@ def show_correlacoes(df):
                 color_continuous_scale='Reds',
                 text_auto='.1f'
             )
-            mostrar_grafico(fig_vitimas)
+            show_chart(fig_vitimas)
 
     with col2:
         st.markdown("#### Sazonalidade por Crime")
@@ -492,7 +492,7 @@ def show_correlacoes(df):
                 title="Sazonalidade dos Crimes por Mês",
                 labels={'index': 'Mês', 'value': 'Número de Casos'}
             )
-            mostrar_grafico(fig_sazon)
+            show_chart(fig_sazon)
 
     # Indicadores de risco
     st.markdown("---")
@@ -505,18 +505,18 @@ def show_correlacoes(df):
         if 'arma_utilizada' in df.columns:
             casos_arma_fogo = len(df[df['arma_utilizada'] == 'Arma de Fogo'])
             perc_arma_fogo = (casos_arma_fogo / len(df) * 100) if len(df) > 0 else 0
-            metrica("Casos com Arma de Fogo", f"{casos_arma_fogo}", f"{perc_arma_fogo:.1f}%")
+            show_metric("Casos com Arma de Fogo", f"{casos_arma_fogo}", f"{perc_arma_fogo:.1f}%")
 
     with col2:
         # Casos com múltiplas vítimas
         if 'quantidade_vitimas' in df.columns:
             casos_multiplas = len(df[df['quantidade_vitimas'] > 1])
             perc_multiplas = (casos_multiplas / len(df) * 100) if len(df) > 0 else 0
-            metrica("Múltiplas Vítimas", f"{casos_multiplas}", f"{perc_multiplas:.1f}%")
+            show_metric("Múltiplas Vítimas", f"{casos_multiplas}", f"{perc_multiplas:.1f}%")
 
     with col3:
         # Casos com múltiplos suspeitos
         if 'quantidade_suspeitos' in df.columns:
             casos_mult_susp = len(df[df['quantidade_suspeitos'] > 1])
             perc_mult_susp = (casos_mult_susp / len(df) * 100) if len(df) > 0 else 0
-            metrica("Múltiplos Suspeitos", f"{casos_mult_susp}", f"{perc_mult_susp:.1f}%")
+            show_metric("Múltiplos Suspeitos", f"{casos_mult_susp}", f"{perc_mult_susp:.1f}%")

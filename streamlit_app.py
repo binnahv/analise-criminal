@@ -1,13 +1,23 @@
-import streamlit as st
-import folium
-from streamlit_folium import st_folium
-from map_utils import new_folium_map
-from ui import definir_idioma_pt, formatar_numero, horario_constante, metrica
-from folium.plugins import HeatMap
-import pydeck as pdk
-from datetime import datetime
+"""Dashboard principal de análise criminal (Streamlit).
+
+Execute com:  streamlit run streamlit_app.py
+"""
 import os
-from security_utils import SecurityManager, LGPDCompliance, DataValidator, show_model_limitations
+from datetime import datetime
+from typing import Optional
+
+import folium
+import pandas as pd
+import pydeck as pdk
+import streamlit as st
+from cryptography.fernet import InvalidToken
+from folium.plugins import HeatMap
+from streamlit_folium import st_folium
+
+from advanced_analysis import run_full_analysis
+from map_utils import new_folium_map
+from security_utils import DataValidator, LGPDCompliance, SecurityManager, show_model_limitations
+from ui import format_number, has_constant_hour, set_page_language_pt, show_metric
 from dashboard_tabs import (
     create_scatter_map, show_temporal_analysis, show_cluster_analysis,
     show_anomaly_analysis, show_risk_prediction, show_statistics_insights,
@@ -50,8 +60,51 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-class EnhancedCriminalDashboard:
-    """Dashboard aprimorado para análise criminal"""
+RESULTS_FILE = 'analysis_results_secure.pkl'
+
+
+@st.cache_data(show_spinner=False)
+def _load_results(modified_at: float) -> tuple[pd.DataFrame, float]:
+    """Lê os resultados criptografados. `modified_at` (data do arquivo) faz o cache ser
+    renovado sempre que a análise é gerada de novo."""
+    results = SecurityManager().load_encrypted_model(RESULTS_FILE)
+    return results['data'], results.get('silhouette_score', 0)
+
+
+def load_analysis_results() -> tuple[Optional[pd.DataFrame], float]:
+    """Carrega os resultados da análise; gera-os na hora se ainda não existirem
+    (por exemplo, na primeira execução da demo online)."""
+    if not os.path.exists(RESULTS_FILE):
+        with st.spinner("Gerando a análise pela primeira vez (cerca de 30 segundos)..."):
+            run_full_analysis()
+    try:
+        return _load_results(os.path.getmtime(RESULTS_FILE))
+    except (InvalidToken, KeyError, OSError) as erro:
+        st.error(f"Não foi possível ler os resultados da análise ({type(erro).__name__}). "
+                 "Apague o arquivo analysis_results_secure.pkl e rode `python advanced_analysis.py`.")
+        return None, 0
+
+
+def _demo_password() -> Optional[str]:
+    """No modo demonstração (DEMO_MODE=1), a senha definida em ADMIN_PASSWORD é mostrada
+    na tela de login, para quem visitar a demo online conseguir entrar."""
+    if os.getenv("DEMO_MODE") == "1":
+        return os.getenv("ADMIN_PASSWORD")
+    return None
+
+
+@st.cache_data(max_entries=20, show_spinner=False)
+def _coherent_coordinates(df: pd.DataFrame) -> pd.Series:
+    """True para as ocorrências cuja coordenada fica dentro do bairro informado."""
+    if 'bairro' in df.columns:
+        return df.apply(lambda row: DataValidator.validate_coordinates_by_neighborhood(
+            row['latitude'], row['longitude'], row['bairro']), axis=1)
+    return df.apply(lambda row: DataValidator.validate_coordinates(row['latitude'], row['longitude']),
+                    axis=1)
+
+
+class CriminalDashboard:
+    """Dashboard de análise criminal: login, filtros e KPIs."""
 
     def __init__(self):
         self.security_manager = SecurityManager()
@@ -85,7 +138,12 @@ class EnhancedCriminalDashboard:
                     else:
                         st.error("Usuário ou senha incorretos")
 
-            st.info("**Login de demonstração** — usuário: `admin`. A senha é exibida no terminal na primeira execução (ou definida em `ADMIN_PASSWORD`).")
+            demo_password = _demo_password()
+            if demo_password:
+                st.info(f"**Demo online** — usuário: `admin` · senha: `{demo_password}`")
+            else:
+                st.info("**Login de demonstração** — usuário: `admin`. A senha é exibida no terminal "
+                        "na primeira execução (ou definida em `ADMIN_PASSWORD`).")
             return False
 
         # Verificar timeout da sessão
@@ -94,30 +152,6 @@ class EnhancedCriminalDashboard:
             return False
 
         return True
-
-    def load_data(self):
-        """Carrega dados com cache e tratamento de erros"""
-        try:
-            # Tentar carregar dados seguros primeiro
-            if os.path.exists('analysis_results_secure.pkl'):
-                results = self.security_manager.load_encrypted_model('analysis_results_secure.pkl')
-                return results['data'], results.get('silhouette_score', 0)
-
-            # Fallback para dados não criptografados
-            elif os.path.exists('analysis_results.pkl'):
-                import pickle
-                with open('analysis_results.pkl', 'rb') as f:
-                    results = pickle.load(f)
-                return results['data'], results.get('silhouette_score', 0)
-
-            else:
-                st.error("❌ Dados não encontrados. Execute primeiro o script de análise.")
-                st.code("python advanced_analysis.py")
-                return None, 0
-
-        except Exception as e:
-            st.error(f"Erro ao carregar dados: {str(e)}")
-            return None, 0
 
     def create_sidebar_filters(self, df):
         """Cria filtros globais na sidebar"""
@@ -166,7 +200,7 @@ class EnhancedCriminalDashboard:
         )
 
         # Filtro de hora (escondido quando todas as ocorrências têm o mesmo horário)
-        if horario_constante(df):
+        if has_constant_hour(df):
             hour_range = (0, 23)
             st.sidebar.caption(f"🕒 Filtro de horário indisponível: todas as ocorrências "
                                f"estão às {int(df['hora'].iloc[0])}h no dataset.")
@@ -237,7 +271,7 @@ class EnhancedCriminalDashboard:
         col1, col2, col3, col4, col5 = st.columns(5)
 
         with col1:
-            metrica(
+            show_metric(
                 "📊 Total de Ocorrências",
                 f"{len(df_filtered):,}",
                 f"{len(df_filtered) - len(df):+,}" if len(df_filtered) != len(df) else None
@@ -245,27 +279,27 @@ class EnhancedCriminalDashboard:
 
         with col2:
             anomalies = len(df_filtered[df_filtered['anomalia'] == -1]) if 'anomalia' in df_filtered.columns else 0
-            metrica("🚨 Anomalias", f"{anomalies:,}")
+            show_metric("🚨 Anomalias", f"{anomalies:,}")
 
         with col3:
             clusters = df_filtered['cluster'].nunique() if 'cluster' in df_filtered.columns else 0
-            metrica("👥 Clusters Ativos", f"{clusters}")
+            show_metric("👥 Clusters Ativos", f"{clusters}")
 
         with col4:
             if 'nivel_risco' in df_filtered.columns:
                 alto_risco = len(df_filtered[df_filtered['nivel_risco'] == 'Alto Risco'])
-                metrica("⚠️ Alto Risco", f"{alto_risco:,}")
+                show_metric("⚠️ Alto Risco", f"{alto_risco:,}")
             else:
-                metrica("⚠️ Alto Risco", "N/A")
+                show_metric("⚠️ Alto Risco", "N/A")
 
         with col5:
             bairros_afetados = df_filtered['bairro'].nunique()
-            metrica("🏘️ Bairros Afetados", f"{bairros_afetados}")
+            show_metric("🏘️ Bairros Afetados", f"{bairros_afetados}")
 
 def main():
     """Função principal do dashboard"""
-    definir_idioma_pt()
-    dashboard = EnhancedCriminalDashboard()
+    set_page_language_pt()
+    dashboard = CriminalDashboard()
 
     # Autenticação
     if not dashboard.authenticate():
@@ -275,7 +309,7 @@ def main():
     st.markdown('<div class="main-header"><h1> Sistema de Análise Criminal</h1><p>Aluna: Sabrina Vidal</p></div>', unsafe_allow_html=True)
 
     # Carregar dados
-    df, sil_score = dashboard.load_data()
+    df, sil_score = load_analysis_results()
     if df is None:
         return
 
@@ -296,51 +330,23 @@ def main():
         st.warning("⚠️ Nenhuma ocorrência encontrada com os filtros aplicados.")
         return
 
-    # Abas principais
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-        "  Geográfica",
-        "  Temporal",
-        "  Clusters",
-        "  Anomalias",
-        "  Previsão",
-        "  Investigação",
-        "  Perfil Suspeitos",
-        "  Gravidade",
-        "  Modus Operandi",
-        "  Estatísticas"
-    ])
-
-    # Implementar cada aba
-    with tab1:
-        show_geographic_analysis(df_filtered, filters)
-
-    with tab2:
-        show_temporal_analysis(df_filtered)
-
-    with tab3:
-        show_cluster_analysis(df_filtered, sil_score)
-
-    with tab4:
-        show_anomaly_analysis(df_filtered)
-
-    with tab5:
-        show_risk_prediction()
-
-    with tab6:
-        show_investigative_performance(df_filtered)
-
-    with tab7:
-        show_suspect_profile(df_filtered)
-
-    with tab8:
-        show_gravity_index(df_filtered)
-
-    with tab9:
-        show_modus_operandi_analysis(df_filtered)
-
-    with tab10:
-        show_statistics_insights(df_filtered)
-
+    # Abas dinâmicas: só a aba aberta é calculada a cada interação
+    tabs = {
+        "Geográfica": lambda: show_geographic_analysis(df_filtered, filters),
+        "Temporal": lambda: show_temporal_analysis(df_filtered),
+        "Clusters": lambda: show_cluster_analysis(df_filtered, sil_score),
+        "Anomalias": lambda: show_anomaly_analysis(df_filtered),
+        "Previsão": show_risk_prediction,
+        "Investigação": lambda: show_investigative_performance(df_filtered),
+        "Perfil Suspeitos": lambda: show_suspect_profile(df_filtered),
+        "Gravidade": lambda: show_gravity_index(df_filtered),
+        "Modus Operandi": lambda: show_modus_operandi_analysis(df_filtered),
+        "Estatísticas": lambda: show_statistics_insights(df_filtered),
+    }
+    for (name, draw), tab in zip(tabs.items(), st.tabs(list(tabs), on_change="rerun", key="aba_principal")):
+        if tab.open:
+            with tab:
+                draw()
 
     # Logout
     if st.sidebar.button("Sair"):
@@ -356,16 +362,8 @@ def show_geographic_analysis(df, filters):
         st.warning("Nenhum dado disponível para visualização geográfica.")
         return
 
-    # Valida as coordenadas uma única vez para todos os tipos de mapa
-    if 'bairro' in df.columns:
-        coerente = df.apply(
-            lambda row: DataValidator.validate_coordinates_by_neighborhood(
-                row['latitude'], row['longitude'], row['bairro']),
-            axis=1)
-    else:
-        coerente = df.apply(
-            lambda row: DataValidator.validate_coordinates(row['latitude'], row['longitude']),
-            axis=1)
+    # Valida as coordenadas uma única vez (com cache) para todos os tipos de mapa
+    coerente = _coherent_coordinates(df)
     n_coerentes = int(coerente.sum())
 
     # Opções de visualização
@@ -400,9 +398,9 @@ def show_geographic_analysis(df, filters):
 
     with col1:
         m1, m2, m3 = st.columns(3)
-        m1.metric("No mapa", formatar_numero(no_mapa))
-        m2.metric("Total filtrado", formatar_numero(len(df)))
-        m3.metric("Coordenadas coerentes", f"{formatar_numero(n_coerentes / len(df) * 100)}%")
+        m1.metric("No mapa", format_number(no_mapa))
+        m2.metric("Total filtrado", format_number(len(df)))
+        m3.metric("Coordenadas coerentes", f"{format_number(n_coerentes / len(df) * 100)}%")
         if incluir_inconsistentes:
             st.caption("⚠️ Exibindo **todas** as coordenadas, inclusive as que não batem com o bairro. "
                        "Repare que os pontos formam um retângulo regular: sinal de coordenadas "

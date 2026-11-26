@@ -153,7 +153,7 @@ def main():
     print("=" * 60)
     print("🎉 Configuração concluída com sucesso!")
     print("\n📋 Como usar:")
-    print("1. 🚀 Iniciar: streamlit run enhanced_app.py")
+    print("1. 🚀 Iniciar: streamlit run streamlit_app.py")
     print("2. 🌐 Acessar: http://localhost:8501")
     print("3. 🔑 Login: admin / senha exibida no terminal (ou ADMIN_PASSWORD)")
     

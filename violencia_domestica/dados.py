@@ -7,40 +7,23 @@ import streamlit as st
 from security_utils import DataValidator
 
 
-def clean_geographic_data(df: pd.DataFrame, show_info: bool = False) -> pd.DataFrame:
-    """Limpa dados geográficos removendo coordenadas inválidas"""
+@st.cache_data(max_entries=20, show_spinner=False)
+def clean_geographic_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Mantém só as ocorrências com coordenada coerente: perto do centro do bairro
+    (bairros conhecidos) ou dentro do Recife (demais bairros, ou sem bairro)."""
     if 'latitude' not in df.columns or 'longitude' not in df.columns:
         return df
-
-    # Aplicar validação geográfica
     if 'bairro' in df.columns:
-        # Validação individual por bairro para cada linha
-        valid_coords = df.apply(
-            lambda row: DataValidator.validate_coordinates_flexible(
-                row['latitude'], row['longitude'], row['bairro']
-            ),
-            axis=1
-        )
-
-        removed_count = len(df) - valid_coords.sum()
-        if removed_count > 0 and show_info:
-            st.info(f"🧹 **Limpeza geográfica:** {removed_count} pontos com coordenadas inválidas foram removidos (longe do bairro informado ou fora do Recife)")
+        valid = df.apply(lambda row: DataValidator.validate_coordinates_flexible(
+            row['latitude'], row['longitude'], row['bairro']), axis=1)
     else:
-        # Sem bairro: aceita qualquer ponto dentro do Recife
-        valid_coords = df.apply(
-            lambda row: DataValidator.validate_coordinates_recife(row['latitude'], row['longitude']),
-            axis=1
-        )
-
-        removed_count = len(df) - valid_coords.sum()
-        if removed_count > 0 and show_info:
-            st.info(f"🧹 **Limpeza geográfica:** {removed_count} pontos com coordenadas inválidas foram removidos")
-
-    return df[valid_coords].copy()
+        valid = df.apply(lambda row: DataValidator.validate_coordinates_recife(
+            row['latitude'], row['longitude']), axis=1)
+    return df[valid].copy()
 
 
 @st.cache_data
-def load_violencia_domestica_data() -> pd.DataFrame:
+def load_domestic_violence_data() -> pd.DataFrame:
     """Carrega e filtra dados específicos de violência doméstica"""
     try:
         # Carregar dataset completo
@@ -182,11 +165,11 @@ def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     return df_filtered
 
 
-MODELO_UPLOAD = 'data/modelo_upload_violencia_domestica.csv'
+UPLOAD_TEMPLATE_PATH = 'data/modelo_upload_violencia_domestica.csv'
 
 
 # Colunas aceitas no upload: (nome, descrição/formato)
-COLUNAS_OBRIGATORIAS = [
+REQUIRED_COLUMNS = [
     ('data_ocorrencia', 'Data e hora: AAAA-MM-DD HH:MM:SS (sem hora, tudo cai em 0h)'),
     ('tipo_crime', 'Ex.: Violência Doméstica, Ameaça, Estupro'),
     ('bairro', 'Nome do bairro'),
@@ -195,7 +178,7 @@ COLUNAS_OBRIGATORIAS = [
 ]
 
 
-COLUNAS_OPCIONAIS = [
+OPTIONAL_COLUMNS = [
     ('arma_utilizada', 'Nenhum, Faca, Arma de Fogo, Objeto Contundente, Explosivos'),
     ('quantidade_vitimas', 'Número inteiro'),
     ('quantidade_suspeitos', 'Número inteiro'),
@@ -208,31 +191,31 @@ COLUNAS_OPCIONAIS = [
 ]
 
 
-def mostrar_instrucoes_upload() -> None:
+def show_upload_instructions() -> None:
     """Mostra na barra lateral as colunas aceitas e o botão do CSV modelo."""
     with st.sidebar.expander("📋 Formato do CSV (colunas aceitas)"):
         st.markdown("**Obrigatórias**")
-        st.markdown("\n".join(f"- `{c}`: {d}" for c, d in COLUNAS_OBRIGATORIAS))
+        st.markdown("\n".join(f"- `{c}`: {d}" for c, d in REQUIRED_COLUMNS))
         st.markdown("**Opcionais** (sem elas, algumas abas ficam limitadas)")
-        st.markdown("\n".join(f"- `{c}`: {d}" for c, d in COLUNAS_OPCIONAIS))
+        st.markdown("\n".join(f"- `{c}`: {d}" for c, d in OPTIONAL_COLUMNS))
         st.caption("Mapa: pontos dos 10 bairros do dataset original precisam estar perto do "
                    "centro do bairro; outros bairros são aceitos se estiverem dentro do Recife "
                    "(latitude -8,16 a -7,93; longitude -35,02 a -34,85).")
-        if os.path.exists(MODELO_UPLOAD):
-            with open(MODELO_UPLOAD, 'rb') as f:
+        if os.path.exists(UPLOAD_TEMPLATE_PATH):
+            with open(UPLOAD_TEMPLATE_PATH, 'rb') as f:
                 st.download_button("⬇️ Baixar CSV modelo", f.read(),
                                    file_name='modelo_upload_violencia_domestica.csv',
                                    mime='text/csv')
 
 
-DIAS_SEMANA_PT = {
+WEEKDAYS_PT = {
     'Monday': 'Segunda-feira', 'Tuesday': 'Terça-feira',
     'Wednesday': 'Quarta-feira', 'Thursday': 'Quinta-feira',
     'Friday': 'Sexta-feira', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
 }
 
 
-def preparar_dataset_upload(df: pd.DataFrame) -> pd.DataFrame:
+def prepare_uploaded_dataset(df: pd.DataFrame) -> pd.DataFrame:
     """Padroniza um CSV enviado pelo usuário para o formato que o dashboard espera.
 
     - Converte 'data_ocorrencia' para data SEMPRE. Não dá para checar
@@ -257,7 +240,7 @@ def preparar_dataset_upload(df: pd.DataFrame) -> pd.DataFrame:
     if 'hora' not in df.columns:
         df['hora'] = df['data_ocorrencia'].dt.hour
     if 'dia_semana' not in df.columns:
-        df['dia_semana'] = df['data_ocorrencia'].dt.day_name().map(DIAS_SEMANA_PT)
+        df['dia_semana'] = df['data_ocorrencia'].dt.day_name().map(WEEKDAYS_PT)
     if 'mes' not in df.columns:
         df['mes'] = df['data_ocorrencia'].dt.month
     if 'ano' not in df.columns:

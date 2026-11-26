@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from ui import metrica, mostrar_grafico
+from ui import show_metric, show_chart
 
 
 def show_investigative_performance(df):
@@ -40,7 +40,7 @@ def show_investigative_performance(df):
             color_continuous_scale='RdYlGn'
         )
         fig_resolucao.update_xaxes(tickangle=45)
-        mostrar_grafico(fig_resolucao)
+        show_chart(fig_resolucao)
 
     with col2:
         st.subheader("📊 Volume de Casos por Delegacia")
@@ -53,7 +53,7 @@ def show_investigative_performance(df):
             names=volume_casos.index,
             title="Distribuição de Casos por Delegacia"
         )
-        mostrar_grafico(fig_volume)
+        show_chart(fig_volume)
 
     # Tabela resumo
     st.subheader("📋 Resumo por Delegacia")
@@ -100,7 +100,7 @@ def show_suspect_profile(df):
             title="Suspeitos por Gênero",
             color_discrete_sequence=['#FF6B6B', '#4ECDC4']
         )
-        mostrar_grafico(fig_genero)
+        show_chart(fig_genero)
 
     with col2:
         st.subheader("🎯 Faixa Etária")
@@ -121,7 +121,7 @@ def show_suspect_profile(df):
             color=idade_dist.values,
             color_continuous_scale='viridis'
         )
-        mostrar_grafico(fig_idade)
+        show_chart(fig_idade)
 
     with col3:
         st.subheader("🔫 Armas Utilizadas")
@@ -135,7 +135,7 @@ def show_suspect_profile(df):
             color=arma_dist.values,
             color_continuous_scale='Reds'
         )
-        mostrar_grafico(fig_arma)
+        show_chart(fig_arma)
 
     # Análise cruzada
     st.subheader("🔍 Análise Cruzada: Crime vs Perfil")
@@ -153,7 +153,7 @@ def show_suspect_profile(df):
             title="Crime vs Gênero",
             color_continuous_scale='Blues'
         )
-        mostrar_grafico(fig_heatmap1)
+        show_chart(fig_heatmap1)
 
     with col2:
         # Heatmap: Tipo de Crime vs Arma
@@ -166,7 +166,7 @@ def show_suspect_profile(df):
             title="Crime vs Arma Utilizada",
             color_continuous_scale='Reds'
         )
-        mostrar_grafico(fig_heatmap2)
+        show_chart(fig_heatmap2)
 
     # Insights
     st.subheader("💡 Insights do Perfil")
@@ -191,25 +191,25 @@ def show_suspect_profile(df):
 
 
 # Pesos do índice de gravidade, alinhados aos valores que existem no dataset
-PESOS_CRIME = {
+CRIME_WEIGHTS = {
     'Homicídio': 10, 'Latrocínio': 9, 'Sequestro': 8, 'Estupro': 8,
     'Roubo': 6, 'Violência Doméstica': 6, 'Tráfico de Drogas': 5,
     'Furto': 3, 'Estelionato': 2, 'Ameaça': 2
 }
 
 
-PESOS_ARMA = {
+WEAPON_WEIGHTS = {
     'Explosivos': 5, 'Arma de Fogo': 5, 'Faca': 3,
     'Objeto Contundente': 2, 'Nenhum': 0
 }
 
 
-def calcular_indice_gravidade(df: pd.DataFrame) -> pd.Series:
+def calculate_gravity_index(df: pd.DataFrame) -> pd.Series:
     """Índice de gravidade = peso do crime + peso da arma + 2 x vítimas + suspeitos.
     Valores desconhecidos de crime/arma recebem peso 1."""
     return (
-        df['tipo_crime'].map(PESOS_CRIME).fillna(1)
-        + df['arma_utilizada'].map(PESOS_ARMA).fillna(1)
+        df['tipo_crime'].map(CRIME_WEIGHTS).fillna(1)
+        + df['arma_utilizada'].map(WEAPON_WEIGHTS).fillna(1)
         + df['quantidade_vitimas'].fillna(0) * 2
         + df['quantidade_suspeitos'].fillna(0)
     )
@@ -234,7 +234,7 @@ def show_gravity_index(df):
     # Cópia para não alterar o DataFrame compartilhado entre as abas
     df = df.copy()
 
-    df['indice_gravidade'] = calcular_indice_gravidade(df)
+    df['indice_gravidade'] = calculate_gravity_index(df)
 
     # Classificar gravidade
     df['nivel_gravidade'] = pd.cut(
@@ -246,17 +246,17 @@ def show_gravity_index(df):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        metrica("🟢 Baixa Gravidade",
+        show_metric("🟢 Baixa Gravidade",
                  len(df[df['nivel_gravidade'] == 'Baixa']),
                  f"{len(df[df['nivel_gravidade'] == 'Baixa'])/len(df)*100:.1f}%")
 
     with col2:
-        metrica("🟡 Média Gravidade",
+        show_metric("🟡 Média Gravidade",
                  len(df[df['nivel_gravidade'] == 'Média']),
                  f"{len(df[df['nivel_gravidade'] == 'Média'])/len(df)*100:.1f}%")
 
     with col3:
-        metrica("🔴 Alta Gravidade",
+        show_metric("🔴 Alta Gravidade",
                  len(df[df['nivel_gravidade'] == 'Alta']),
                  f"{len(df[df['nivel_gravidade'] == 'Alta'])/len(df)*100:.1f}%")
 
@@ -273,7 +273,7 @@ def show_gravity_index(df):
             title="Casos por Nível de Gravidade",
             color_discrete_sequence=['#2ECC71', '#F39C12', '#E74C3C']
         )
-        mostrar_grafico(fig_gravidade)
+        show_chart(fig_gravidade)
 
     with col2:
         st.subheader("🗺️ Gravidade por Bairro")
@@ -288,7 +288,7 @@ def show_gravity_index(df):
             color=bairro_gravidade.values[:10],
             color_continuous_scale='Reds'
         )
-        mostrar_grafico(fig_bairro)
+        show_chart(fig_bairro)
 
     # Casos de alta gravidade
     st.subheader("🚨 Casos de Alta Gravidade - Prioridade Investigativa")
@@ -342,7 +342,7 @@ def show_modus_operandi_analysis(df):
             color=modus_freq.values,
             color_continuous_scale='viridis'
         )
-        mostrar_grafico(fig_modus)
+        show_chart(fig_modus)
 
     with col2:
         st.subheader("📈 Evolução Temporal dos Padrões")
@@ -370,7 +370,7 @@ def show_modus_operandi_analysis(df):
                 title="Evolução dos Principais Padrões"
             )
             fig_temporal.update_xaxes(tickangle=45)
-            mostrar_grafico(fig_temporal)
+            show_chart(fig_temporal)
         else:
             st.info("Campo 'data_ocorrencia' não disponível para análise temporal.")
 
@@ -393,7 +393,7 @@ def show_modus_operandi_analysis(df):
         color_continuous_scale='Blues'
     )
     fig_heatmap.update_xaxes(tickangle=45)
-    mostrar_grafico(fig_heatmap)
+    show_chart(fig_heatmap)
 
     # Insights e recomendações
     st.subheader("💡 Insights e Recomendações")

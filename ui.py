@@ -13,13 +13,12 @@ from typing import Any
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-import streamlit.components.v1 as components
 
-MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
             'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
 # Nomes de coluna que aparecem como título de eixo/legenda nos gráficos
-NOMES_AMIGAVEIS = {
+FRIENDLY_NAMES = {
     'Taxa_Resolucao': 'Taxa de resolução (%)',
     'orgao_responsavel': 'Delegacia',
     'importance': 'Importância',
@@ -37,7 +36,7 @@ NOMES_AMIGAVEIS = {
 }
 
 
-def formatar_numero(valor: Any, casas: int = 1) -> Any:
+def format_number(valor: Any, casas: int = 1) -> Any:
     """3482 -> '3.482'; 33.7 -> '33,7'. Textos como '33.7%' viram '33,7%'."""
     if isinstance(valor, bool):
         return valor
@@ -58,20 +57,20 @@ def formatar_numero(valor: Any, casas: int = 1) -> Any:
     return valor
 
 
-def metrica_delta(delta: Any) -> Any:
-    return formatar_numero(delta) if delta is not None else None
+def _format_delta(delta: Any) -> Any:
+    return format_number(delta) if delta is not None else None
 
 
-def metrica(label: str, value: Any, *args: Any, **kwargs: Any) -> None:
+def show_metric(label: str, value: Any, *args: Any, **kwargs: Any) -> None:
     """st.metric com o valor (e a variação, se houver) no formato brasileiro."""
     if args:
-        args = (metrica_delta(args[0]),) + args[1:]
+        args = (_format_delta(args[0]),) + args[1:]
     if 'delta' in kwargs:
-        kwargs['delta'] = metrica_delta(kwargs['delta'])
-    st.metric(label, formatar_numero(value), *args, **kwargs)
+        kwargs['delta'] = _format_delta(kwargs['delta'])
+    st.metric(label, format_number(value), *args, **kwargs)
 
 
-def _eixo_numerico(fig: Any, eixo: str) -> bool:
+def _is_numeric_axis(fig: Any, eixo: str) -> bool:
     for trace in fig.data:
         valores = getattr(trace, eixo, None)
         if valores is None or len(valores) == 0:
@@ -80,7 +79,7 @@ def _eixo_numerico(fig: Any, eixo: str) -> bool:
     return False
 
 
-def mostrar_grafico(fig: Any, **kwargs: Any) -> None:
+def show_chart(fig: Any, **kwargs: Any) -> None:
     """Exibe um gráfico Plotly com títulos de eixo em português e sem a
     barra de cor quando ela só repete a informação do tamanho da barra."""
     # Em mapas de calor a escala de cor é a informação principal: mantém
@@ -90,25 +89,25 @@ def mostrar_grafico(fig: Any, **kwargs: Any) -> None:
         layout_eixo = fig.layout[f'{eixo}axis']
         titulo = layout_eixo.title.text if layout_eixo and layout_eixo.title else None
         if titulo in ('x', 'y'):
-            novo = 'Número de ocorrências' if _eixo_numerico(fig, eixo) else ''
+            novo = 'Número de ocorrências' if _is_numeric_axis(fig, eixo) else ''
             fig.update_layout({f'{eixo}axis_title_text': novo})
-        elif titulo in NOMES_AMIGAVEIS:
-            fig.update_layout({f'{eixo}axis_title_text': NOMES_AMIGAVEIS[titulo]})
+        elif titulo in FRIENDLY_NAMES:
+            fig.update_layout({f'{eixo}axis_title_text': FRIENDLY_NAMES[titulo]})
     legenda = fig.layout.legend.title.text if fig.layout.legend and fig.layout.legend.title else None
-    if legenda in NOMES_AMIGAVEIS:
-        fig.update_layout(legend_title_text=NOMES_AMIGAVEIS[legenda])
+    if legenda in FRIENDLY_NAMES:
+        fig.update_layout(legend_title_text=FRIENDLY_NAMES[legenda])
     fig.update_layout(separators=',.')  # vírgula decimal e ponto de milhar
     kwargs.setdefault('width', 'stretch')
     st.plotly_chart(fig, **kwargs)
 
 
-def horario_constante(df: pd.DataFrame) -> bool:
+def has_constant_hour(df: pd.DataFrame) -> bool:
     """True quando todas as ocorrências têm a mesma hora (caso do dataset da
     disciplina: todos os registros foram gerados às 19:48)."""
     return 'hora' in df.columns and df['hora'].dropna().nunique() <= 1 and len(df) > 1
 
 
-def aviso_horario_constante(df: pd.DataFrame) -> None:
+def show_constant_hour_notice(df: pd.DataFrame) -> None:
     hora = int(df['hora'].dropna().iloc[0]) if df['hora'].notna().any() else 0
     st.info(
         f"🕒 **Horário indisponível nestes dados.** Todas as ocorrências estão registradas "
@@ -117,23 +116,23 @@ def aviso_horario_constante(df: pd.DataFrame) -> None:
     )
 
 
-def grafico_mes_do_ano(df: pd.DataFrame, titulo: str = "Ocorrências por mês do ano") -> None:
+def show_month_of_year_chart(df: pd.DataFrame, titulo: str = "Ocorrências por mês do ano") -> None:
     """Barras com o total de ocorrências em cada mês (Jan a Dez), somando todos os anos."""
     contagem = df['data_ocorrencia'].dt.month.value_counts().reindex(range(1, 13), fill_value=0)
-    fig = px.bar(x=MESES_PT, y=contagem.values, title=titulo,
+    fig = px.bar(x=MONTHS_PT, y=contagem.values, title=titulo,
                  labels={'x': 'Mês', 'y': 'Número de ocorrências'})
-    mostrar_grafico(fig)
+    show_chart(fig)
     mes_pico = int(contagem.idxmax())
-    st.info(f"📅 **Mês com mais registros:** {MESES_PT[mes_pico - 1]} "
-            f"({formatar_numero(int(contagem.max()))} ocorrências)")
+    st.info(f"📅 **Mês com mais registros:** {MONTHS_PT[mes_pico - 1]} "
+            f"({format_number(int(contagem.max()))} ocorrências)")
 
 
-def heatmap_mes_dia(df: pd.DataFrame, ordem_dias: list[str], titulo: str) -> None:
+def show_month_weekday_heatmap(df: pd.DataFrame, ordem_dias: list[str], titulo: str) -> None:
     """Mapa de calor Mês x Dia da semana (alternativa ao Hora x Dia)."""
     tabela = pd.crosstab(df['data_ocorrencia'].dt.month, df['dia_semana'])
     tabela = tabela.reindex(index=range(1, 13), columns=[d for d in ordem_dias if d in tabela.columns],
                             fill_value=0)
-    fig = px.imshow(tabela.values, x=tabela.columns, y=MESES_PT, aspect='auto',
+    fig = px.imshow(tabela.values, x=tabela.columns, y=MONTHS_PT, aspect='auto',
                     color_continuous_scale='Reds', title=titulo,
                     labels={'x': 'Dia da semana', 'y': 'Mês', 'color': 'Ocorrências'})
     fig.update_xaxes(tickangle=45)
@@ -141,10 +140,8 @@ def heatmap_mes_dia(df: pd.DataFrame, ordem_dias: list[str], titulo: str) -> Non
     st.plotly_chart(fig, width='stretch')  # aqui a escala de cor é a informação principal
 
 
-def definir_idioma_pt() -> None:
+def set_page_language_pt() -> None:
     """Marca o documento como pt-BR. O Streamlit declara a página como inglês,
     o que confunde a tradução automática do navegador."""
-    components.html(
-        "<script>try{window.parent.document.documentElement.lang='pt-BR';}catch(e){}</script>",
-        height=0,
-    )
+    st.html("<script>document.documentElement.lang = 'pt-BR';</script>",
+            unsafe_allow_javascript=True)

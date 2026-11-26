@@ -1,156 +1,144 @@
 """Aba de previsão: estimativa de ocorrência grave pelo modelo treinado."""
 import os
+from datetime import datetime
+from typing import Any, Optional
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from cryptography.fernet import InvalidToken
 
 from security_utils import SecurityManager
-from ui import metrica, mostrar_grafico
+from ui import MONTHS_PT, show_chart, show_metric
 
-PREFIXOS_VARIAVEIS = {
+MODEL_FILE = 'risk_model_secure.pkl'
+WEEKEND_DAYS = {'sábado', 'domingo'}
+
+FEATURE_PREFIXES = {
     'bairro_': 'Bairro: ',
     'dia_semana_': 'Dia: ',
     'periodo_dia_': 'Período: ',
 }
-NOMES_VARIAVEIS = {'mes': 'Mês', 'hora': 'Hora', 'fim_semana': 'Fim de semana',
-                   'fim_semana_True': 'Fim de semana'}
+FEATURE_NAMES = {'mes': 'Mês', 'hora': 'Hora', 'fim_semana': 'Fim de semana',
+                 'fim_semana_True': 'Fim de semana'}
 
 
-def nome_variavel(coluna: str) -> str:
+def feature_label(column: str) -> str:
     """'dia_semana_terça-feira' -> 'Dia: terça-feira'; 'mes' -> 'Mês'."""
-    if coluna in NOMES_VARIAVEIS:
-        return NOMES_VARIAVEIS[coluna]
-    for prefixo, rotulo in PREFIXOS_VARIAVEIS.items():
-        if coluna.startswith(prefixo):
-            return rotulo + coluna[len(prefixo):]
-    return coluna
+    if column in FEATURE_NAMES:
+        return FEATURE_NAMES[column]
+    for prefix, label in FEATURE_PREFIXES.items():
+        if column.startswith(prefix):
+            return label + column[len(prefix):]
+    return column
 
 
-def show_risk_prediction():
-    """Aba de previsão de risco"""
+def period_of_day(hour: int) -> str:
+    """Mesma regra usada no treino (advanced_analysis._categorize_time_period)."""
+    if 6 <= hour < 12:
+        return 'Manhã'
+    if 12 <= hour < 18:
+        return 'Tarde'
+    if 18 <= hour < 24:
+        return 'Noite'
+    return 'Madrugada'
+
+
+def build_input_row(columns: list[str], bairro: str, weekday: str, hour: int, month: int) -> pd.DataFrame:
+    """Monta a linha de entrada do modelo com todas as variáveis usadas no treino:
+    bairro, dia da semana, hora, mês, período do dia e fim de semana."""
+    row = pd.DataFrame(0, index=[0], columns=columns)
+    for column in (f"bairro_{bairro}", f"dia_semana_{weekday}", f"periodo_dia_{period_of_day(hour)}"):
+        if column in row.columns:
+            row[column] = 1
+    if 'hora' in row.columns:
+        row['hora'] = hour
+    if 'mes' in row.columns:
+        row['mes'] = month
+    is_weekend = weekday in WEEKEND_DAYS
+    for column in ('fim_semana', 'fim_semana_True'):
+        if column in row.columns:
+            row[column] = int(is_weekend)
+    return row
+
+
+@st.cache_resource(max_entries=1, show_spinner=False)
+def _load_model(modified_at: float) -> dict[str, Any]:
+    """Carrega o modelo criptografado (o cache é renovado quando o arquivo muda)."""
+    return SecurityManager().load_encrypted_model(MODEL_FILE)
+
+
+def _get_model() -> Optional[dict[str, Any]]:
+    if not os.path.exists(MODEL_FILE):
+        st.error("❌ Modelo de previsão não encontrado. Rode `python advanced_analysis.py`.")
+        return None
+    try:
+        return _load_model(os.path.getmtime(MODEL_FILE))
+    except (InvalidToken, OSError) as erro:
+        st.error(f"Não foi possível carregar o modelo ({type(erro).__name__}).")
+        return None
+
+
+def _show_estimate(model_data: dict[str, Any], row: pd.DataFrame) -> None:
+    probability = float(model_data['model'].predict_proba(row)[0][1]) * 100
+    st.subheader("📊 Resultado da Estimativa")
+    metrics = model_data.get('metrics', {})
+    col1, col2 = st.columns(2)
+    with col1:
+        show_metric("Probabilidade de ocorrência grave", f"{probability:.1f}%")
+    with col2:
+        if 'baseline_accuracy' in metrics:
+            show_metric("Referência (baseline)", f"{(1 - metrics['baseline_accuracy']) * 100:.1f}%",
+                        help="Proporção de ocorrências graves no conjunto de treino/teste.")
+    if metrics:
+        st.caption(
+            f"Validação cruzada: acurácia {metrics['cv_accuracy']:.3f} | "
+            f"baseline {metrics['baseline_accuracy']:.3f} | ROC AUC {metrics['cv_roc_auc']:.3f} "
+            "(0,5 = acaso). Se a acurácia não supera o baseline e o AUC fica perto de 0,5, "
+            "o modelo não encontrou padrão real nos dados.")
+
+
+def _show_feature_importance(model_data: dict[str, Any]) -> None:
+    model = model_data['model']
+    if not hasattr(model, 'feature_importances_'):
+        return
+    st.subheader("📈 Importância das Variáveis")
+    importance = (pd.DataFrame({'feature': model_data['model_columns'],
+                                'importance': model.feature_importances_})
+                  .sort_values('importance', ascending=False).head(10))
+    importance['feature'] = importance['feature'].map(feature_label)
+    fig = px.bar(importance, x='importance', y='feature', orientation='h',
+                 title="Top 10 Variáveis Mais Importantes")
+    fig.update_yaxes(categoryorder='total ascending')
+    show_chart(fig)
+    st.caption("Com o modelo no nível do acaso (ROC AUC ≈ 0,49), a importância "
+               "das variáveis não indica um padrão real.")
+
+
+def show_risk_prediction() -> None:
+    """Aba de previsão de ocorrência grave."""
     st.header("🔮 Estimativa: ocorrência grave por local e horário")
     st.info("Modelo demonstrativo: estima a probabilidade de uma ocorrência ser um crime grave "
             "(homicídio, latrocínio, estupro ou sequestro) a partir de bairro, dia e hora. "
             "Como o dataset é fictício, o modelo tende a não superar o acaso; veja as métricas abaixo.")
-
-    # Tentar carregar modelo
-    security_manager = SecurityManager()
-
-    try:
-        if os.path.exists('risk_model_secure.pkl'):
-            model_data = security_manager.load_encrypted_model('risk_model_secure.pkl')
-        elif os.path.exists('risk_model.pkl'):
-            import pickle
-            with open('risk_model.pkl', 'rb') as f:
-                model_data = pickle.load(f)
-                # Converter formato antigo se necessário
-                if isinstance(model_data, tuple):
-                    model, model_columns, bairros_list, dias_semana_list = model_data
-                    model_data = {
-                        'model': model,
-                        'model_columns': model_columns,
-                        'bairros_list': bairros_list,
-                        'dias_semana_list': dias_semana_list
-                    }
-        else:
-            st.error("❌ Modelo de previsão não encontrado.")
-            return
-
-    except Exception as e:
-        st.error(f"Erro ao carregar modelo: {str(e)}")
+    model_data = _get_model()
+    if model_data is None:
         return
 
-    # Interface de previsão
     st.subheader("🎯 Fazer Previsão de Risco")
-
-    col1, col2, col3 = st.columns(3)
-
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        selected_bairro = st.selectbox(
-            "Selecione o Bairro",
-            options=sorted(model_data['bairros_list'])
-        )
-
+        bairro = st.selectbox("Selecione o Bairro", options=sorted(model_data['bairros_list']))
     with col2:
-        selected_dia = st.selectbox(
-            "Selecione o Dia da Semana",
-            options=model_data['dias_semana_list']
-        )
-
+        weekday = st.selectbox("Selecione o Dia da Semana", options=model_data['dias_semana_list'])
     with col3:
-        selected_hora = st.slider("Selecione a Hora", 0, 23, 19)
+        month = st.selectbox("Selecione o Mês", options=range(1, 13), index=datetime.now().month - 1,
+                             format_func=lambda m: MONTHS_PT[m - 1])
+    with col4:
+        hour = st.slider("Selecione a Hora", 0, 23, 19)
         st.caption("No dataset todas as ocorrências estão às 19h, então a hora "
                    "praticamente não altera a estimativa.")
 
     if st.button("🔮 Estimar probabilidade", type="primary"):
-        try:
-            # Preparar dados para previsão
-            input_data = pd.DataFrame(0, index=[0], columns=model_data['model_columns'])
-
-            # Preencher features
-            bairro_col = f"bairro_{selected_bairro}"
-            if bairro_col in input_data.columns:
-                input_data[bairro_col] = 1
-
-            dia_col = f"dia_semana_{selected_dia}"
-            if dia_col in input_data.columns:
-                input_data[dia_col] = 1
-
-            if 'hora' in input_data.columns:
-                input_data['hora'] = selected_hora
-
-            # Fazer previsão (probabilidade da classe "ocorrência grave")
-            model = model_data['model']
-            proba_grave = float(model.predict_proba(input_data)[0][1]) * 100
-
-            st.subheader("📊 Resultado da Estimativa")
-            col1, col2 = st.columns(2)
-            with col1:
-                metrica("Probabilidade de ocorrência grave", f"{proba_grave:.1f}%")
-            with col2:
-                base = model_data.get('metrics', {}).get('baseline_accuracy')
-                if base is not None:
-                    metrica("Referência (baseline)", f"{(1 - base) * 100:.1f}%",
-                              help="Proporção de ocorrências graves no conjunto de treino/teste.")
-
-            metrics = model_data.get('metrics')
-            if metrics:
-                st.caption(
-                    f"Validação cruzada: acurácia {metrics['cv_accuracy']:.3f} | "
-                    f"baseline {metrics['baseline_accuracy']:.3f} | "
-                    f"ROC AUC {metrics['cv_roc_auc']:.3f} (0,5 = acaso). "
-                    "Se a acurácia não supera o baseline e o AUC fica perto de 0,5, "
-                    "o modelo não encontrou padrão real nos dados."
-                )
-
-        except Exception as e:
-            st.error(f"Erro na previsão: {str(e)}")
-
-    # Feature Importance
-    if 'model' in model_data:
-        st.subheader("📈 Importância das Variáveis")
-
-        try:
-            model = model_data['model']
-            if hasattr(model, 'feature_importances_'):
-                importance_df = pd.DataFrame({
-                    'feature': model_data['model_columns'],
-                    'importance': model.feature_importances_
-                }).sort_values('importance', ascending=False).head(10)
-                importance_df['feature'] = importance_df['feature'].map(nome_variavel)
-
-                fig_importance = px.bar(
-                    importance_df,
-                    x='importance',
-                    y='feature',
-                    orientation='h',
-                    title="Top 10 Variáveis Mais Importantes"
-                )
-                fig_importance.update_yaxes(categoryorder='total ascending')
-                mostrar_grafico(fig_importance)
-                st.caption("Com o modelo no nível do acaso (ROC AUC ≈ 0,49), a importância "
-                           "das variáveis não indica um padrão real.")
-
-        except Exception:
-            st.warning("Não foi possível exibir a importância das variáveis.")
+        _show_estimate(model_data, build_input_row(model_data['model_columns'], bairro, weekday, hour, month))
+    _show_feature_importance(model_data)

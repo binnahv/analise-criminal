@@ -3,7 +3,7 @@
 import plotly.express as px
 import streamlit as st
 
-from ui import aviso_horario_constante, grafico_mes_do_ano, heatmap_mes_dia, horario_constante, metrica, mostrar_grafico
+from ui import show_constant_hour_notice, show_month_of_year_chart, show_month_weekday_heatmap, has_constant_hour, show_metric, show_chart
 
 
 def show_temporal_analysis(df):
@@ -14,9 +14,9 @@ def show_temporal_analysis(df):
         st.warning("Nenhum dado disponível para análise temporal.")
         return
 
-    sem_horario = horario_constante(df)
+    sem_horario = has_constant_hour(df)
     if sem_horario:
-        aviso_horario_constante(df)
+        show_constant_hour_notice(df)
 
     # Análise por hora do dia (ou por mês, se a hora for constante)
     col1, col2 = st.columns(2)
@@ -24,7 +24,7 @@ def show_temporal_analysis(df):
     with col1:
         if sem_horario:
             st.subheader("📊 Distribuição por Mês do Ano")
-            grafico_mes_do_ano(df)
+            show_month_of_year_chart(df)
         elif 'hora' in df.columns:
             st.subheader("📊 Distribuição por Hora do Dia")
             hourly_counts = df['hora'].value_counts().sort_index()
@@ -36,7 +36,7 @@ def show_temporal_analysis(df):
                 title="Ocorrências por Hora"
             )
             fig_hour.update_layout(showlegend=False)
-            mostrar_grafico(fig_hour)
+            show_chart(fig_hour)
 
             # Identificar pico
             peak_hour = hourly_counts.idxmax()
@@ -55,7 +55,7 @@ def show_temporal_analysis(df):
                 title="Ocorrências por Dia da Semana"
             )
             fig_day.update_xaxes(tickangle=45)
-            mostrar_grafico(fig_day)
+            show_chart(fig_day)
 
             # Identificar dia mais crítico
             peak_day = daily_counts.idxmax()
@@ -75,14 +75,14 @@ def show_temporal_analysis(df):
             labels={'x': 'Mês/Ano', 'y': 'Número de Ocorrências'},
             title="Evolução Mensal das Ocorrências"
         )
-        mostrar_grafico(fig_monthly)
+        show_chart(fig_monthly)
         st.caption("O primeiro e o último mês do período podem estar incompletos, "
                    "por isso a linha cai nas pontas.")
 
     # Heatmap de hora (ou mês) vs dia da semana
     if sem_horario and 'dia_semana' in df.columns:
         st.subheader("🔥 Mapa de Calor: Mês vs Dia da Semana")
-        heatmap_mes_dia(df, ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira',
+        show_month_weekday_heatmap(df, ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira',
                              'sexta-feira', 'sábado', 'domingo'],
                         "Intensidade de Ocorrências por Mês e Dia da Semana")
     elif 'hora' in df.columns and 'dia_semana' in df.columns:
@@ -109,7 +109,7 @@ def show_temporal_analysis(df):
             title="Intensidade de Crimes por Hora e Dia da Semana"
         )
         fig_heatmap.update_xaxes(tickangle=45)
-        mostrar_grafico(fig_heatmap)
+        show_chart(fig_heatmap)
 
 
 def show_cluster_analysis(df, sil_score):
@@ -125,14 +125,14 @@ def show_cluster_analysis(df, sil_score):
 
     with col1:
         n_clusters = df['cluster'].nunique()
-        metrica("🎯 Número de Clusters", n_clusters)
+        show_metric("🎯 Número de Clusters", n_clusters)
 
     with col2:
-        metrica("📊 Silhouette Score", f"{sil_score:.3f}")
+        show_metric("📊 Silhouette Score", f"{sil_score:.3f}")
 
     with col3:
         noise_points = len(df[df['cluster'] == -1]) if -1 in df['cluster'].values else 0
-        metrica("🔍 Pontos de Ruído", noise_points)
+        show_metric("🔍 Pontos de Ruído", noise_points)
 
     # Seletor de cluster
     clusters_available = sorted([c for c in df['cluster'].unique() if c != -1])
@@ -194,7 +194,7 @@ def show_cluster_analysis(df, sil_score):
         labels={'x': 'Cluster ID', 'y': 'Número de Ocorrências'},
         title="Distribuição de Ocorrências por Cluster"
     )
-    mostrar_grafico(fig_clusters)
+    show_chart(fig_clusters)
 
 
 def show_anomaly_analysis(df):
@@ -212,21 +212,21 @@ def show_anomaly_analysis(df):
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        metrica("🚨 Total de Anomalias", len(anomalies))
+        show_metric("🚨 Total de Anomalias", len(anomalies))
 
     with col2:
         percentage = (len(anomalies) / len(df)) * 100 if len(df) > 0 else 0
-        metrica("📊 Percentual", f"{percentage:.2f}%")
+        show_metric("📊 Percentual", f"{percentage:.2f}%")
 
     with col3:
         if len(anomalies) > 0:
             most_common_crime = anomalies['tipo_crime'].mode().iloc[0] if 'tipo_crime' in anomalies.columns else "N/A"
-            metrica("🎯 Crime Mais Comum", most_common_crime)
+            show_metric("🎯 Crime Mais Comum", most_common_crime)
 
     with col4:
         if len(anomalies) > 0:
             most_affected_area = anomalies['bairro'].mode().iloc[0] if 'bairro' in anomalies.columns else "N/A"
-            metrica("🏘️ Área Mais Afetada", most_affected_area)
+            show_metric("🏘️ Área Mais Afetada", most_affected_area)
 
     if len(anomalies) == 0:
         st.info("✅ Nenhuma anomalia detectada nos dados filtrados.")
@@ -246,7 +246,7 @@ def show_anomaly_analysis(df):
                 names=crime_dist.index,
                 title="Anomalias por Tipo de Crime"
             )
-            mostrar_grafico(fig_crime)
+            show_chart(fig_crime)
 
     with col2:
         # Distribuição por bairro
@@ -258,7 +258,7 @@ def show_anomaly_analysis(df):
                 orientation='h',
                 title="Top 10 Bairros com Anomalias"
             )
-            mostrar_grafico(fig_bairro)
+            show_chart(fig_bairro)
 
     # Tabela de anomalias
     st.subheader("📋 Lista de Anomalias Detectadas")
@@ -303,7 +303,7 @@ def show_anomaly_analysis(df):
 
     if len(anomalies) > 0:
         # Análise temporal
-        if 'hora' in anomalies.columns and not horario_constante(anomalies):
+        if 'hora' in anomalies.columns and not has_constant_hour(anomalies):
             peak_hour = anomalies['hora'].mode().iloc[0]
             insights.append(f"🕐 Horário mais comum para anomalias: {peak_hour}:00")
 

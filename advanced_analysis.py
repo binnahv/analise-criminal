@@ -177,7 +177,7 @@ class AdvancedCriminalAnalysis:
     
     # Tipos de crime considerados graves (alvo do modelo). O alvo NÃO é derivado
     # de bairro/hora/dia, portanto não há vazamento de informação (target leakage).
-    CRIMES_GRAVES = ['Homicídio', 'Latrocínio', 'Estupro', 'Sequestro']
+    SERIOUS_CRIMES = ['Homicídio', 'Latrocínio', 'Estupro', 'Sequestro']
 
     def train_risk_prediction_model(self, model_type: str = 'xgboost') -> tuple[dict, float]:
         """Treina modelo que estima a probabilidade de uma ocorrência ser GRAVE
@@ -212,7 +212,7 @@ class AdvancedCriminalAnalysis:
         self.df['nivel_risco'] = self.df['bairro'].apply(classify_density)
 
         # Alvo do modelo: ocorrência grave (1) ou não (0)
-        self.df['ocorrencia_grave'] = self.df['tipo_crime'].isin(self.CRIMES_GRAVES).astype(int)
+        self.df['ocorrencia_grave'] = self.df['tipo_crime'].isin(self.SERIOUS_CRIMES).astype(int)
 
         features_pred = ['bairro', 'hora', 'dia_semana', 'mes', 'periodo_dia', 'fim_semana']
         target = 'ocorrencia_grave'
@@ -315,39 +315,38 @@ class AdvancedCriminalAnalysis:
         
         print("Resultados salvos com segurança.")
 
-def main() -> None:
-    """Função principal"""
-    print("=== Análise Criminal Avançada ===")
-    
-    # Inicializar análise
-    analysis = AdvancedCriminalAnalysis('data/dataset_ocorrencias_delegacia_5.csv')
-    
-    # Carregar e preprocessar dados
-    df = analysis.load_and_preprocess_data()
-    
-    # Clusterização
-    sil_score = analysis.perform_clustering(method='kmeans')
-    analysis.silhouette_score = sil_score
-    
-    # Detecção de anomalias
+DATA_PATH = 'data/dataset_ocorrencias_delegacia_5.csv'
+
+
+def run_full_analysis(data_path: str = DATA_PATH) -> 'AdvancedCriminalAnalysis':
+    """Roda o pipeline completo (limpeza, clustering, anomalias e modelo) e salva os
+    resultados criptografados. Usado pelo script e pelo dashboard, quando os
+    resultados ainda não existem (por exemplo, na primeira execução de uma demo online)."""
+    analysis = AdvancedCriminalAnalysis(data_path)
+    analysis.load_and_preprocess_data()
+    analysis.silhouette_score = analysis.perform_clustering(method='kmeans')
     analysis.detect_anomalies(method='isolation_forest')
-    
-    # Modelo de previsão de risco
-    class_report, cv_accuracy = analysis.train_risk_prediction_model(model_type='xgboost')
-    
-    # Salvar resultados
+    _, analysis.cv_accuracy = analysis.train_risk_prediction_model(model_type='xgboost')
     analysis.save_results()
-    
+    return analysis
+
+
+def main() -> None:
+    """Executa o pipeline pelo terminal e mostra um resumo."""
+    print("=== Análise Criminal Avançada ===")
+    analysis = run_full_analysis()
+    df, m = analysis.df, analysis.model_metrics
+
     print("\n=== Resumo da Análise ===")
     print(f"Total de registros processados: {len(df)}")
-    print(f"Silhouette Score: {sil_score:.3f}")
-    m = analysis.model_metrics
-    print(f"Modelo de ocorrência grave -> acurácia CV: {cv_accuracy:.3f} | "
+    print(f"Silhouette Score: {analysis.silhouette_score:.3f}")
+    print(f"Modelo de ocorrência grave -> acurácia CV: {analysis.cv_accuracy:.3f} | "
           f"baseline: {m['baseline_accuracy']:.3f} | ROC AUC: {m['cv_roc_auc']:.3f}")
     print(f"Anomalias detectadas: {sum(df['anomalia'] == -1)}")
-    
+
     print("\nAnálise concluída! Execute o dashboard com:")
-    print("streamlit run enhanced_app.py")
+    print("streamlit run streamlit_app.py")
+
 
 if __name__ == "__main__":
     main()

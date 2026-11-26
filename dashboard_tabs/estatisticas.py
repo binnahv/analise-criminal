@@ -1,142 +1,88 @@
 """Aba de estatísticas gerais e insights."""
-
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from ui import horario_constante, metrica, mostrar_grafico
+from ui import has_constant_hour, show_chart, show_metric
+
+RISK_COLORS = {'Alto Risco': '#ff4444', 'Médio Risco': '#ffaa00', 'Baixo Risco': '#44ff44'}
 
 
-def show_statistics_insights(df):
+def _show_summary_metrics(df: pd.DataFrame) -> None:
+    st.subheader("📈 Resumo Estatístico")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        show_metric("📊 Total de Crimes", len(df))
+    with col2:
+        show_metric("🏘️ Bairros Afetados", df['bairro'].nunique())
+    with col3:
+        show_metric("📅 Período (dias)", (df['data_ocorrencia'].max() - df['data_ocorrencia'].min()).days)
+    with col4:
+        show_metric("🎯 Tipos de Crime", df['tipo_crime'].nunique())
+
+
+def _show_top_chart(counts: pd.Series, subtitle: str, title: str) -> None:
+    st.subheader(subtitle)
+    top = counts.head(10)
+    show_chart(px.bar(x=top.values, y=top.index, orientation='h', title=title))
+
+
+def _show_risk_distribution(df: pd.DataFrame) -> None:
+    st.subheader("⚠️ Distribuição por Nível de Risco")
+    risk = df['nivel_risco'].value_counts()
+    col1, col2 = st.columns(2)
+    with col1:
+        show_chart(px.pie(values=risk.values, names=risk.index, title="Distribuição de Níveis de Risco",
+                          color=risk.index, color_discrete_map=RISK_COLORS))
+    with col2:
+        stats = (df.groupby('nivel_risco')
+                 .agg(**{'Total Ocorrências': ('tipo_crime', 'count'), 'Bairros Únicos': ('bairro', 'nunique')}))
+        st.write("**Estatísticas por Nível de Risco:**")
+        st.dataframe(stats, width='stretch')
+
+
+def general_insights(df: pd.DataFrame) -> list[str]:
+    """Frases-resumo sobre horário, concentração, diversidade e anomalias."""
+    insights = []
+    if 'hora' in df.columns and not has_constant_hour(df):
+        peaks = df['hora'].value_counts().head(3).index
+        insights.append(f"🕐 **Horários de pico:** {', '.join(f'{h}:00' for h in peaks)}")
+    share_top3 = df['bairro'].value_counts().head(3).sum() / len(df) * 100
+    insights.append(f"🏘️ **Concentração:** Top 3 bairros representam {share_top3:.1f}% dos crimes")
+    diversity = df.groupby('bairro')['tipo_crime'].nunique().mean()
+    insights.append(f"🎯 **Diversidade criminal:** Média de {diversity:.1f} tipos de crime por bairro")
+    if 'anomalia' in df.columns:
+        rate = (df['anomalia'] == -1).mean() * 100
+        insights.append(f"🚨 **Taxa de anomalias:** {rate:.2f}% das ocorrências são atípicas")
+    return insights
+
+
+def _show_sample_table(df: pd.DataFrame) -> None:
+    st.subheader("📋 Dados Filtrados (Amostra)")
+    columns = ['data_ocorrencia', 'tipo_crime', 'bairro']
+    columns += [c for c in ('nivel_risco', 'cluster') if c in df.columns]
+    st.dataframe(df[columns].head(20), width='stretch')
+
+
+def show_statistics_insights(df: pd.DataFrame) -> None:
     """Aba de estatísticas e insights"""
     st.header("📊 Estatísticas e Insights Gerais")
-
-    if len(df) == 0:
+    if df.empty:
         st.warning("Nenhum dado disponível para análise estatística.")
         return
 
-    # Estatísticas gerais
-    st.subheader("📈 Resumo Estatístico")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        total_crimes = len(df)
-        metrica("📊 Total de Crimes", f"{total_crimes:,}")
-
-    with col2:
-        unique_locations = df['bairro'].nunique() if 'bairro' in df.columns else 0
-        metrica("🏘️ Bairros Afetados", unique_locations)
-
-    with col3:
-        if 'data_ocorrencia' in df.columns:
-            date_range = (df['data_ocorrencia'].max() - df['data_ocorrencia'].min()).days
-            metrica("📅 Período (dias)", date_range)
-
-    with col4:
-        crime_types = df['tipo_crime'].nunique() if 'tipo_crime' in df.columns else 0
-        metrica("🎯 Tipos de Crime", crime_types)
-
-    # Análises detalhadas
+    _show_summary_metrics(df)
     col1, col2 = st.columns(2)
-
     with col1:
-        st.subheader("🏆 Top 10 Crimes Mais Frequentes")
-        if 'tipo_crime' in df.columns:
-            top_crimes = df['tipo_crime'].value_counts().head(10)
-            fig_top_crimes = px.bar(
-                x=top_crimes.values,
-                y=top_crimes.index,
-                orientation='h',
-                title="Crimes Mais Frequentes"
-            )
-            mostrar_grafico(fig_top_crimes)
-
+        _show_top_chart(df['tipo_crime'].value_counts(), "🏆 Top 10 Crimes Mais Frequentes",
+                        "Crimes Mais Frequentes")
     with col2:
-        st.subheader("🏘️ Top 10 Bairros Mais Afetados")
-        if 'bairro' in df.columns:
-            top_bairros = df['bairro'].value_counts().head(10)
-            fig_top_bairros = px.bar(
-                x=top_bairros.values,
-                y=top_bairros.index,
-                orientation='h',
-                title="Bairros Mais Afetados"
-            )
-            mostrar_grafico(fig_top_bairros)
-
-    # Distribuição de risco
+        _show_top_chart(df['bairro'].value_counts(), "🏘️ Top 10 Bairros Mais Afetados",
+                        "Bairros Mais Afetados")
     if 'nivel_risco' in df.columns:
-        st.subheader("⚠️ Distribuição por Nível de Risco")
+        _show_risk_distribution(df)
 
-        risk_dist = df['nivel_risco'].value_counts()
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            fig_risk_pie = px.pie(
-                values=risk_dist.values,
-                names=risk_dist.index,
-                title="Distribuição de Níveis de Risco",
-                color_discrete_map={
-                    'Alto Risco': '#ff4444',
-                    'Médio Risco': '#ffaa00',
-                    'Baixo Risco': '#44ff44'
-                }
-            )
-            mostrar_grafico(fig_risk_pie)
-
-        with col2:
-            # Tabela de estatísticas por risco
-            risk_stats = df.groupby('nivel_risco').agg({
-                'tipo_crime': 'count',
-                'bairro': 'nunique'
-            }).rename(columns={
-                'tipo_crime': 'Total Ocorrências',
-                'bairro': 'Bairros Únicos'
-            })
-
-            st.write("**Estatísticas por Nível de Risco:**")
-            st.dataframe(risk_stats, width='stretch')
-
-    # Correlações e insights
     st.subheader("🔍 Insights Avançados")
-
-    insights = []
-
-    # Análise temporal
-    if 'hora' in df.columns and not horario_constante(df):
-        peak_hours = df['hora'].value_counts().head(3)
-        insights.append(f"🕐 **Horários de pico:** {', '.join([f'{h}:00' for h in peak_hours.index])}")
-
-    # Análise de concentração
-    if 'bairro' in df.columns:
-        top_3_bairros = df['bairro'].value_counts().head(3)
-        total_top_3 = top_3_bairros.sum()
-        percentage = (total_top_3 / len(df)) * 100
-        insights.append(f"🏘️ **Concentração:** Top 3 bairros representam {percentage:.1f}% dos crimes")
-
-    # Análise de diversidade criminal
-    if 'tipo_crime' in df.columns and 'bairro' in df.columns:
-        crime_diversity = df.groupby('bairro')['tipo_crime'].nunique().mean()
-        insights.append(f"🎯 **Diversidade criminal:** Média de {crime_diversity:.1f} tipos de crime por bairro")
-
-    # Análise de anomalias
-    if 'anomalia' in df.columns:
-        anomaly_rate = (len(df[df['anomalia'] == -1]) / len(df)) * 100
-        insights.append(f"🚨 **Taxa de anomalias:** {anomaly_rate:.2f}% das ocorrências são atípicas")
-
-    for insight in insights:
+    for insight in general_insights(df):
         st.info(insight)
-
-    # Tabela de dados filtrados
-    st.subheader("📋 Dados Filtrados (Amostra)")
-
-    display_cols = ['data_ocorrencia', 'tipo_crime', 'bairro']
-    if 'nivel_risco' in df.columns:
-        display_cols.append('nivel_risco')
-    if 'cluster' in df.columns:
-        display_cols.append('cluster')
-
-    st.dataframe(
-        df[display_cols].head(20),
-        width='stretch'
-    )
+    _show_sample_table(df)
