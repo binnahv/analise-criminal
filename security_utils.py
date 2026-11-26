@@ -6,6 +6,7 @@ Implementa criptografia, controle de acesso e validação de dados (demonstraç�
 import pickle
 import os
 import hashlib
+import hmac
 import secrets
 import streamlit as st
 from cryptography.fernet import Fernet
@@ -73,9 +74,29 @@ class SecurityManager:
         logging.info(f"Modelo carregado: {filename}")
         return model_data
 
-    def hash_password(self, password: str) -> str:
-        """Gera hash da senha"""
-        return hashlib.sha256(password.encode()).hexdigest()
+    PBKDF2_ITERATIONS = 600_000  # recomendação da OWASP para PBKDF2-SHA256
+
+    def hash_password(self, password: str, salt: Optional[bytes] = None) -> str:
+        """Gera o hash da senha com PBKDF2-SHA256 e um sal aleatório.
+
+        Formato salvo: 'pbkdf2_sha256$<iterações>$<sal hex>$<hash hex>'.
+        O sal faz duas senhas iguais terem hashes diferentes, e as iterações
+        deixam ataques de força bruta muito mais lentos.
+        """
+        salt = salt or secrets.token_bytes(16)
+        digest = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, self.PBKDF2_ITERATIONS)
+        return f"pbkdf2_sha256${self.PBKDF2_ITERATIONS}${salt.hex()}${digest.hex()}"
+
+    @staticmethod
+    def verify_password(password: str, stored: str) -> bool:
+        """Confere a senha com o hash salvo (aceita também o SHA-256 antigo, sem sal)."""
+        if stored.startswith('pbkdf2_sha256$'):
+            _, iteracoes, salt_hex, hash_hex = stored.split('$')
+            digest = hashlib.pbkdf2_hmac('sha256', password.encode(),
+                                         bytes.fromhex(salt_hex), int(iteracoes))
+            return hmac.compare_digest(digest.hex(), hash_hex)
+        # Formato antigo (SHA-256 sem sal), de arquivos users.pkl criados antes
+        return hmac.compare_digest(hashlib.sha256(password.encode()).hexdigest(), stored)
 
     def _load_users(self) -> dict:
         """Carrega os usuários; cria o admin de demonstração se o arquivo não existir.
@@ -136,10 +157,14 @@ class SecurityManager:
         """Autentica usuário"""
         users = self._load_users()
 
-        if username in users:
-            if users[username]['password'] == self.hash_password(password):
-                logging.info(f"Login bem-sucedido: {username}")
-                return True, users[username]
+        if username in users and self.verify_password(password, users[username]['password']):
+            # Converte automaticamente hashes no formato antigo para PBKDF2
+            if not users[username]['password'].startswith('pbkdf2_sha256$'):
+                users[username]['password'] = self.hash_password(password)
+                self._save_users(users)
+                logging.info(f"Hash de senha atualizado para PBKDF2: {username}")
+            logging.info(f"Login bem-sucedido: {username}")
+            return True, users[username]
 
         logging.warning(f"Tentativa de login falhada: {username}")
         return False, None
